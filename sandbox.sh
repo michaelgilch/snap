@@ -2,16 +2,21 @@
 #
 # Sandbox for initial experimentations
 #
-# packages: wmctrl xdotool
+# packages: wmctrl xdotool xorg-xwininfo
 
 GetActiveWinGeo() {
     wingeo1=$(xdotool getwindowgeometry $window)
     echo "Active Window Geometry (xdotool) = $wingeo1"
     echo ""
 
-    windowHex=$(echo "obase=16; 44042839" | bc | tr '[:upper:]' '[:lower:]')
+    windowHex=$(echo "obase=16; $window" | bc | tr '[:upper:]' '[:lower:]')
+    echo $windowHex
     wingeo2=$(wmctrl -liG | grep $windowHex)
     echo "Active Window Geometry (wmctrl) = $wingeo2"
+    echo ""
+
+    wingeo3=$(xwininfo -id 0x$windowHex)
+    echo "Active Window Geometry (xwininfo) = $wingeo3"
     echo ""
 }
 
