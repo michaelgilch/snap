@@ -8,9 +8,11 @@
 # My window decoractions = 24px (typically)
 #   Still need to check apps like Chrome and gtk3
 
-# -----
-# Work Area Calculations
-# -----
+echo 
+echo -----
+echo "Work Area Calculations"
+echo -----
+echo
 
 x_start=''
 y_start=''
@@ -44,9 +46,61 @@ echo ""
 
 get_screen_area
 
-# -----
-# Window Calculations 
-# -----
+    echo "X_START = " $x_start
+    echo "X_SIZE  = " $x_size 
+    echo "Y_START = " $y_start "    <== My tint2 panel size"  
+    echo "Y_SIZE  = " $y_size
+    echo ""
+
+echo 
+echo -----
+echo "Quadrant Calculations"
+echo -----
+echo
+
+echo "-------------------------"
+echo "|       |       |       |"
+echo "|  -1,1 |  0,1  |  1,1  |"
+echo "|_______|_______|_______|"
+echo "|       |       |       |"
+echo "|  -1,0 |  0,0  |  1,0  |"
+echo "|_______|_______|_______|"
+echo "|       |       |       |"
+echo "| -1,-1 |  0,-1 |  1,-1 |"
+echo "|_______|_______|_______|"
+echo
+
+
+# screen, x_quad, y_quad
+get_quadrant_info() {
+    screen=$1
+    x_quad=$2
+    y_quad=$3
+    echo "Screen: " $screen 
+    echo "X_Quad: " $x_quad
+    echo "Y_Quad: " $y_quad
+
+    let new_x_quad=$x_quad+1
+    echo "New X_Quad: " $new_x_quad
+
+    # Quadrant Values = x_start, y_start, width, height
+    if [ x_quad == -1 ]; then
+        x_start=0
+    elif [ x_quad == 1 ]; then
+        x_start='screen width / 2'
+    fi
+
+    echo $x_start
+}
+
+get_quadrant_info 0 -1 1
+
+
+echo 
+echo -----
+echo "Window Calculations"
+echo -----
+echo
 
 GetActiveWinGeo() {
     wingeo1=$(xdotool getwindowgeometry $window)
@@ -69,6 +123,15 @@ window=$(xdotool getactivewindow)
 echo "Active Window = $window"
 echo ""
 
+windowFrame=$(xprop -id "$window" _NET_FRAME_EXTENTS)
+echo $windowFrame "  <== 24 = Openbox Titlebar"
+
+echo
+echo -----
+echo "Window Movements"
+echo -----
+echo
+
 # Pre-Move geometry
 #GetActiveWinGeo
 
@@ -79,3 +142,4 @@ echo ""
 
 # Post-Move geometry
 #GetActiveWinGeo
+
