@@ -14,8 +14,20 @@ function get_window_state() {
     fi
 }
 
+#
+# DEV TEST MANUALLY ADD _SNAP_STATE
+#
+function dev_test() {
+    xprop -id $WINDOW -f _SNAP_STATE 8s -set _SNAP_STATE "test"
+}
+#
+# END DEV TEST
+#
+
 WINDOW=$(xdotool getactivewindow)
 echo "Window: $WINDOW"
+
+dev_test
 
 get_window_state
 echo "State: $WINDOW_STATE"
