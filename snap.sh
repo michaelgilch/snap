@@ -110,12 +110,43 @@ elif [ $cmd == 'd' ]; then
     let new_y_quad=$orig_y_quad-1
 fi
 
+case $new_x_quad in
+    -1)
+        let new_x=0
+        let new_width=1920/2
+        ;;
+    0)
+        let new_x=0
+        let new_width=1920
+        ;;
+    1)
+        let new_x=1920/2
+        let new_width=1920/2
+        ;;
+esac
+
+case $new_y_quad in 
+    -1)
+        let new_y=1080/2
+        let new_height=1054/2
+        ;;
+    0)
+        let new_y=26
+        let new_height=1054
+        ;;
+    1)
+        let new_y=26
+        let new_height=1054/2
+        ;;
+esac
+
 if [ $screen == 2 ]; then
     let new_x=new_x+1920
 fi
 
 echo "$orig_x_quad,$orig_y_quad --> $new_x_quad,$new_y_quad"
+echo "$orig_w,$orig_h --> $new_width,$new_height"
 
-# xdotool windowmove $WINDOW $new_x $new_y
-# xdotool windowsize $WINDOW 1920 1031
+xdotool windowmove $WINDOW $new_x $new_y
+xdotool windowsize $WINDOW $new_width $new_height
 
