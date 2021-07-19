@@ -55,6 +55,8 @@ get_window_state
 orig_x_quad=0
 orig_y_quad=0
 
+# Window State stored as:
+# x_quad, y_quad, orig_x, orig_y, orig_w, orig_h
 case $window_state in
     "N/A" )
         echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
@@ -95,6 +97,8 @@ case $window_state in
         fi
         echo "SCREEN: $screen"
 
+
+        xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "0, 0, $orig_x, $orig_y, $orig_w, $orig_h"
 
         ;;
     "test" )
