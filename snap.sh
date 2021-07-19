@@ -1,50 +1,61 @@
 #!/bin/bash
 #
 # Window Snapping Utility for Openbox
+#
+# Makes some assumptions about multi-monitor setups:
+# - screens arranged horizontally
+# - screens have same resolutions
+# - panels are present on every screen, in the same location, and of the same size
 
-# These should be calculated dynamically later.
-screen_x_start=0
-screen_y_start=26
-screen_x_total=3840
-screen_y_total=1054
+function get_monitor_count() {
+    num_monitors=$(xrandr -q | grep -c " connected")
+    echo "Num Monitors = $num_monitors"
+}
 
-monitor1_x_start=0
-monitor2_x_start=1920
+function get_screen_geometry() {
+    screen_dimensions=$(xprop -root _NET_WORKAREA | awk -F '[ ,]' '{print $3, $5, $7, $9}')
+
+    screen_x_start=$(echo $screen_dimensions | cut -d' ' -f1)
+    screen_y_start=$(echo $screen_dimensions | cut -d' ' -f2)
+    let screen_width=$(echo $screen_dimensions | cut -d' ' -f3)/num_monitors
+    screen_height=$(echo $screen_dimensions | cut -d' ' -f4)
+    
+    echo "Screen Geometry = $screen_x_start, $screen_y_start, $screen_width, $screen_height"
+}
+
+function get_active_window() {
+    window=$(xdotool getactivewindow)
+    echo "Active Window = $window"
+}
+
+function dev_test() {
+    xprop -id $window -f _SNAP_STATE 8s -set _SNAP_STATE "test"
+}
 
 # Stores the _SNAP_STATE xprop value in WINDOW_STATE
 # If no _SNAP_STATE property is found, stores "N/A"
 # Example: _SNAP_STATE(STRING) = "test"
 function get_window_state() {
-    xprop -id $WINDOW | grep "_SNAP_STATE" >/dev/null
+    xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
-        eval WINDOW_STATE=$(xprop -id $WINDOW _SNAP_STATE | awk '{print $3}')
+        eval window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3}')
     else
-        eval WINDOW_STATE="N/A"
+        eval window_state="N/A"
     fi
+    echo "Window State = $window_state"
 }
 
-#
-# DEV TEST MANUALLY ADD _SNAP_STATE
-#
-function dev_test() {
-    xprop -id $WINDOW -f _SNAP_STATE 8s -set _SNAP_STATE "test"
-}
-#
-# END DEV TEST
-#
-
-WINDOW=$(xdotool getactivewindow)
-echo "Window: $WINDOW"
-
+get_monitor_count
+get_screen_geometry
+get_active_window
 #dev_test
-
 get_window_state
-echo "State: $WINDOW_STATE"
+
 
 orig_x_quad=0
 orig_y_quad=0
 
-case $WINDOW_STATE in
+case $window_state in
     "N/A" )
         echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
 
@@ -127,8 +138,8 @@ esac
 
 case $new_y_quad in 
     -1)
-        let new_y=1080/2
-        let new_height=1054/2
+        let new_y=1054/2+22+2
+        let new_height=1054/2-22
         ;;
     0)
         let new_y=26
@@ -136,17 +147,17 @@ case $new_y_quad in
         ;;
     1)
         let new_y=26
-        let new_height=1054/2
+        let new_height=1054/2-22-2
         ;;
 esac
 
-if [ $screen == 2 ]; then
+if [ "$screen" -eq 2 ]; then
     let new_x=new_x+1920
 fi
 
 echo "$orig_x_quad,$orig_y_quad --> $new_x_quad,$new_y_quad"
 echo "$orig_w,$orig_h --> $new_width,$new_height"
 
-xdotool windowmove $WINDOW $new_x $new_y
-xdotool windowsize $WINDOW $new_width $new_height
+# xdotool windowmove $WINDOW $new_x $new_y
+# xdotool windowsize $WINDOW $new_width $new_height
 
