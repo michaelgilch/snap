@@ -131,44 +131,51 @@ if [ $new_y_quad -gt 1 ] || [ $new_y_quad -lt -1 ]; then
     echo "y out of range"
 fi
 
+if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
+    echo "Returning to original position"
+    new_x=$orig_x
+    new_y=$orig_y
+    new_width=$orig_w
+    new_height=$orig_h
+    xprop -id "$window" -remove _SNAP_STATE
+else
+    case $new_x_quad in
+        -1)
+            let new_x=0
+            let new_width=1920/2
+            ;;
+        0)
+            let new_x=0
+            let new_width=1920
+            ;;
+        1)
+            let new_x=1920/2
+            let new_width=1920/2
+            ;;
+    esac
+    
+    case $new_y_quad in 
+        -1)
+            let new_y=1054/2+22+2
+            let new_height=1054/2-22
+            ;;
+        0)
+            let new_y=26
+            let new_height=1054-24-1
+            ;;
+        1)
+            let new_y=26
+            let new_height=1054/2-22-2
+            ;;
+    esac
+    
+    if [ "$screen" == 2 ]; then
+        let new_x=new_x+1920
+    fi
 
-case $new_x_quad in
-    -1)
-        let new_x=0
-        let new_width=1920/2
-        ;;
-    0)
-        let new_x=0
-        let new_width=1920
-        ;;
-    1)
-        let new_x=1920/2
-        let new_width=1920/2
-        ;;
-esac
-
-case $new_y_quad in 
-    -1)
-        let new_y=1054/2+22+2
-        let new_height=1054/2-22
-        ;;
-    0)
-        let new_y=26
-        let new_height=1054-24-1
-        ;;
-    1)
-        let new_y=26
-        let new_height=1054/2-22-2
-        ;;
-esac
-
-if [ "$screen" == 2 ]; then
-    let new_x=new_x+1920
+    echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
+    echo "$orig_w,$orig_h --> $new_width,$new_height"
 fi
-
-echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-echo "$orig_w,$orig_h --> $new_width,$new_height"
-
 xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
 
 xdotool windowmove $window $new_x $new_y
