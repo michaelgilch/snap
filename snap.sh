@@ -38,7 +38,8 @@ function dev_test() {
 function get_window_state() {
     xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
-        eval window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3}')
+        #eval window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3}')
+        window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3, $4, $5, $6, $7, $8, $9, $10, $11, $12}' | sed 's/,//g')
     else
         eval window_state="N/A"
     fi
@@ -61,16 +62,6 @@ case $window_state in
     "N/A" )
         echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
 
-
-        # get orig window geometry
-        entire=false
-        orig_x=0 # x pos
-        orig_y=0 # y pos
-        orig_w=0 # width
-        orig_h=0 # height
-        orig_b=0 # border
-        orig_t=0 # title
-
         eval $(xwininfo -id $(xdotool getactivewindow) |
                 sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
                        -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
@@ -78,17 +69,13 @@ case $window_state in
                        -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
                        -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/b=\1/p" \
                        -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/t=\1/p" )
-        if [ "$entire" == true ]; then
             let orig_x=$x-$b
             let orig_y=$y-$t
             let orig_w=$w+2*$b
             let orig_h=$h+$t+$b
-        else
-            let orig_x=$x
-            let orig_y=$y
-            let orig_w=$w
-            let orig_h=$h
-        fi
+
+            let last_x_quad=0
+            let last_y_quad=0
 
         screen=1
         echo "ORIG X: $orig_x"
@@ -97,33 +84,53 @@ case $window_state in
         fi
         echo "SCREEN: $screen"
 
-
-        xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "0, 0, $orig_x, $orig_y, $orig_w, $orig_h"
+        #xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h"
 
         ;;
-    "test" )
+    * )
         echo "Window has been found!"
+        echo "$window_state"
+        orig_x=$(echo $window_state | cut -d' ' -f1)
+        orig_y=$(echo $window_state | cut -d' ' -f2)
+        orig_w=$(echo $window_state | cut -d' ' -f3)
+        orig_h=$(echo $window_state | cut -d' ' -f4)
+        last_x_quad=$(echo $window_state | cut -d' ' -f5)
+        last_y_quad=$(echo $window_state | cut -d' ' -f6)
+        last_x=$(echo $window_state | cut -d' ' -f7)
+        last_y=$(echo $window_state | cut -d' ' -f8)
+        last_w=$(echo $window_state | cut -d' ' -f9)
+        last_h=$(echo $window_state | cut -d' ' -f10)
+
         ;;
 esac
 
 
-let new_x_quad=0
-let new_y_quad=0
+new_x_quad=$last_x_quad
+new_y_quad=$last_y_quad
 
 cmd=$1
 if [ $cmd == 'l' ]; then
-    let new_x_quad=$orig_x_quad-1
-    # let new_x=$screen_x_start
-    # let new_y=$screen_y_start
+    let new_x_quad=$last_x_quad-1
 elif [ $cmd == 'r' ]; then
-    let new_x_quad=$orig_x_quad+1
-    # let new_x=$screen_x_total/4
-    # let new_y=$screen_y_start
+    let new_x_quad=$last_x_quad+1
 elif [ $cmd == 'u' ]; then
-    let new_y_quad=$orig_y_quad+1
+    let new_y_quad=$last_y_quad+1
 elif [ $cmd == 'd' ]; then
-    let new_y_quad=$orig_y_quad-1
+    let new_y_quad=$last_y_quad-1
 fi
+
+echo "$new_x_quad"
+if [ $new_x_quad -gt 1 ] || [ $new_x_quad -lt -1 ]; then
+    new_x_quad=$last_x_quad
+    echo "x out of range"
+fi
+
+echo "$new_y_quad"
+if [ $new_y_quad -gt 1 ] || [ $new_y_quad -lt -1 ]; then
+    new_y_quad=$last_y_quad
+    echo "y out of range"
+fi
+
 
 case $new_x_quad in
     -1)
@@ -147,7 +154,7 @@ case $new_y_quad in
         ;;
     0)
         let new_y=26
-        let new_height=1054
+        let new_height=1054-24-1
         ;;
     1)
         let new_y=26
@@ -155,13 +162,15 @@ case $new_y_quad in
         ;;
 esac
 
-if [ "$screen" -eq 2 ]; then
+if [ "$screen" == 2 ]; then
     let new_x=new_x+1920
 fi
 
-echo "$orig_x_quad,$orig_y_quad --> $new_x_quad,$new_y_quad"
+echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
 echo "$orig_w,$orig_h --> $new_width,$new_height"
 
-# xdotool windowmove $WINDOW $new_x $new_y
-# xdotool windowsize $WINDOW $new_width $new_height
+xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
+
+xdotool windowmove $window $new_x $new_y
+xdotool windowsize $window $new_width $new_height
 
