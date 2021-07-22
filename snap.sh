@@ -34,7 +34,6 @@ function dev_test() {
 
 # Stores the _SNAP_STATE xprop value in WINDOW_STATE
 # If no _SNAP_STATE property is found, stores "N/A"
-# Example: _SNAP_STATE(STRING) = "test"
 function get_window_state() {
     xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
@@ -46,11 +45,21 @@ function get_window_state() {
     echo "Window State = $window_state"
 }
 
+function get_window_monitor() {
+    screen=1
+    
+    if [ $orig_x -gt  1920 ]; then
+        screen=2
+    fi
+    echo "SCREEN: $screen"
+}
+
 get_monitor_count
 get_screen_geometry
 get_active_window
 #dev_test
 get_window_state
+get_window_monitor
 
 
 orig_x_quad=0
@@ -74,15 +83,12 @@ case $window_state in
             let orig_w=$w+2*$b
             let orig_h=$h+$t+$b
 
+            echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
+
             let last_x_quad=0
             let last_y_quad=0
 
-        screen=1
-        echo "ORIG X: $orig_x"
-        if [ $orig_x -gt  1920 ]; then
-            screen=2
-        fi
-        echo "SCREEN: $screen"
+
 
         #xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h"
 
@@ -169,7 +175,10 @@ else
             ;;
     esac
     
-    if [ "$screen" == 2 ]; then
+    get_window_monitor
+
+    echo "Screen = $screen"
+    if [ "$screen" == "2" ]; then
         let new_x=new_x+1920
     fi
 
