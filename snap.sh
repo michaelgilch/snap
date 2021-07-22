@@ -28,10 +28,6 @@ function get_active_window() {
     echo "Active Window = $window"
 }
 
-function dev_test() {
-    xprop -id $window -f _SNAP_STATE 8s -set _SNAP_STATE "test"
-}
-
 # Stores the _SNAP_STATE xprop value in WINDOW_STATE
 # If no _SNAP_STATE property is found, stores "N/A"
 function get_window_state() {
@@ -55,12 +51,27 @@ function get_window_monitor() {
     echo "SCREEN: $screen"
 }
 
+function get_window_geometry() {
+    eval $(xwininfo -id $window |
+            sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
+                   -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
+                   -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
+                   -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
+                   -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/b=\1/p" \
+                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/t=\1/p" )
+    let curr_x=$x-$b
+    let curr_y=$y-$t
+    let curr_w=$w+2*$b
+    let curr_h=$h+$t+$b
+
+    echo "Current Window Geometry: $curr_x, $curr_y, $curr_w, $curr_h"
+}
+
 get_monitor_count
 get_screen_geometry
 get_active_window
-#dev_test
+get_window_geometry
 get_window_state
-
 
 
 orig_x_quad=0
@@ -72,22 +83,15 @@ case $window_state in
     "N/A" )
         echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
 
-        eval $(xwininfo -id $(xdotool getactivewindow) |
-                sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
-                       -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
-                       -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
-                       -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
-                       -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/b=\1/p" \
-                       -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/t=\1/p" )
-            let orig_x=$x-$b
-            let orig_y=$y-$t
-            let orig_w=$w+2*$b
-            let orig_h=$h+$t+$b
+        orig_x=$curr_x
+        orig_y=$curr_y
+        orig_w=$curr_w
+        orig_h=$curr_h
 
-            echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
+        echo "Original Window Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
 
-            let last_x_quad=0
-            let last_y_quad=0
+        let last_x_quad=0
+        let last_y_quad=0
         ;;
     * )
         echo "Window has been found!"
@@ -140,6 +144,7 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     new_y=$orig_y
     new_width=$orig_w
     new_height=$orig_h
+
     xprop -id "$window" -remove _SNAP_STATE
 else
     case $new_x_quad in
