@@ -13,7 +13,7 @@ function get_monitor_count() {
 }
 
 function get_screen_geometry() {
-    screen_dimensions=$(xprop -root _NET_WORKAREA | awk -F '[ ,]' '{print $3, $5, $7, $9}')
+    screen_dimensions=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
 
     screen_x_start=$(echo $screen_dimensions | cut -d' ' -f1)
     screen_y_start=$(echo $screen_dimensions | cut -d' ' -f2)
@@ -38,7 +38,8 @@ function get_window_state() {
     xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
         #eval window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3}')
-        window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3, $4, $5, $6, $7, $8, $9, $10, $11, $12}' | sed 's/,//g')
+        #window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3, $4, $5, $6, $7, $8, $9, $10, $11, $12}' | sed 's/,//g')
+        window_state=$(xprop -id $window _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
     else
         eval window_state="N/A"
     fi
@@ -48,7 +49,7 @@ function get_window_state() {
 function get_window_monitor() {
     screen=1
     
-    if [ $orig_x -gt  1920 ]; then
+    if [ "$orig_x" -gt 1920 ]; then
         screen=2
     fi
     echo "SCREEN: $screen"
@@ -59,7 +60,7 @@ get_screen_geometry
 get_active_window
 #dev_test
 get_window_state
-get_window_monitor
+
 
 
 orig_x_quad=0
@@ -87,28 +88,24 @@ case $window_state in
 
             let last_x_quad=0
             let last_y_quad=0
-
-
-
-        #xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h"
-
         ;;
     * )
         echo "Window has been found!"
         echo "$window_state"
-        orig_x=$(echo $window_state | cut -d' ' -f1)
-        orig_y=$(echo $window_state | cut -d' ' -f2)
-        orig_w=$(echo $window_state | cut -d' ' -f3)
-        orig_h=$(echo $window_state | cut -d' ' -f4)
-        last_x_quad=$(echo $window_state | cut -d' ' -f5)
-        last_y_quad=$(echo $window_state | cut -d' ' -f6)
-        last_x=$(echo $window_state | cut -d' ' -f7)
-        last_y=$(echo $window_state | cut -d' ' -f8)
-        last_w=$(echo $window_state | cut -d' ' -f9)
-        last_h=$(echo $window_state | cut -d' ' -f10)
-
+        let orig_x=$(echo $window_state | cut -d' ' -f1)
+        let orig_y=$(echo $window_state | cut -d' ' -f2)
+        let orig_w=$(echo $window_state | cut -d' ' -f3)
+        let orig_h=$(echo $window_state | cut -d' ' -f4)
+        let last_x_quad=$(echo $window_state | cut -d' ' -f5)
+        let last_y_quad=$(echo $window_state | cut -d' ' -f6)
+        let last_x=$(echo $window_state | cut -d' ' -f7)
+        let last_y=$(echo $window_state | cut -d' ' -f8)
+        let last_w=$(echo $window_state | cut -d' ' -f9)
+        let last_h=$(echo $window_state | cut -d' ' -f10)
         ;;
 esac
+
+get_window_monitor
 
 
 new_x_quad=$last_x_quad
@@ -178,7 +175,7 @@ else
     get_window_monitor
 
     echo "Screen = $screen"
-    if [ "$screen" == "2" ]; then
+    if [ "$screen" == 2 ]; then
         let new_x=new_x+1920
     fi
 
