@@ -28,27 +28,40 @@ function get_active_window() {
     echo "Active Window = $window"
 }
 
-# Stores the _SNAP_STATE xprop value in WINDOW_STATE
-# If no _SNAP_STATE property is found, stores "N/A"
 function get_window_state() {
     xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
-        #eval window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3}')
-        #window_state=$(xprop -id $window _SNAP_STATE | awk '{print $3, $4, $5, $6, $7, $8, $9, $10, $11, $12}' | sed 's/,//g')
         window_state=$(xprop -id $window _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
+        let orig_x=$(echo $window_state | cut -d' ' -f1)
+        let orig_y=$(echo $window_state | cut -d' ' -f2)
+        let orig_w=$(echo $window_state | cut -d' ' -f3)
+        let orig_h=$(echo $window_state | cut -d' ' -f4)
+        let last_x_quad=$(echo $window_state | cut -d' ' -f5)
+        let last_y_quad=$(echo $window_state | cut -d' ' -f6)
+        let last_x=$(echo $window_state | cut -d' ' -f7)
+        let last_y=$(echo $window_state | cut -d' ' -f8)
+        let last_w=$(echo $window_state | cut -d' ' -f9)
+        let last_h=$(echo $window_state | cut -d' ' -f10)
     else
-        eval window_state="N/A"
+        echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
+        orig_x=$curr_x
+        orig_y=$curr_y
+        orig_w=$curr_w
+        orig_h=$curr_h
+        let last_x_quad=0
+        let last_y_quad=0
+        echo "Original Window Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
     fi
     echo "Window State = $window_state"
 }
 
 function get_window_monitor() {
-    screen=1
+    monitor=1
     
     if [ "$orig_x" -gt 1920 ]; then
-        screen=2
+        monitor=2
     fi
-    echo "SCREEN: $screen"
+    echo "Monitor: $monitor"
 }
 
 function get_window_geometry() {
@@ -67,48 +80,15 @@ function get_window_geometry() {
     echo "Current Window Geometry: $curr_x, $curr_y, $curr_w, $curr_h"
 }
 
+function reset_stored_geometry() {
+    xprop -id "$window" -remove _SNAP_STATE
+}
+
 get_monitor_count
 get_screen_geometry
 get_active_window
 get_window_geometry
 get_window_state
-
-
-orig_x_quad=0
-orig_y_quad=0
-
-# Window State stored as:
-# x_quad, y_quad, orig_x, orig_y, orig_w, orig_h
-case $window_state in
-    "N/A" )
-        echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
-
-        orig_x=$curr_x
-        orig_y=$curr_y
-        orig_w=$curr_w
-        orig_h=$curr_h
-
-        echo "Original Window Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
-
-        let last_x_quad=0
-        let last_y_quad=0
-        ;;
-    * )
-        echo "Window has been found!"
-        echo "$window_state"
-        let orig_x=$(echo $window_state | cut -d' ' -f1)
-        let orig_y=$(echo $window_state | cut -d' ' -f2)
-        let orig_w=$(echo $window_state | cut -d' ' -f3)
-        let orig_h=$(echo $window_state | cut -d' ' -f4)
-        let last_x_quad=$(echo $window_state | cut -d' ' -f5)
-        let last_y_quad=$(echo $window_state | cut -d' ' -f6)
-        let last_x=$(echo $window_state | cut -d' ' -f7)
-        let last_y=$(echo $window_state | cut -d' ' -f8)
-        let last_w=$(echo $window_state | cut -d' ' -f9)
-        let last_h=$(echo $window_state | cut -d' ' -f10)
-        ;;
-esac
-
 get_window_monitor
 
 
@@ -144,8 +124,8 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     new_y=$orig_y
     new_width=$orig_w
     new_height=$orig_h
-
-    xprop -id "$window" -remove _SNAP_STATE
+    
+    reset_stored_geometry
 else
     case $new_x_quad in
         -1)
@@ -179,15 +159,15 @@ else
     
     get_window_monitor
 
-    echo "Screen = $screen"
-    if [ "$screen" == 2 ]; then
+    echo "Monitor = $monitor"
+    if [ "$monitor" == 2 ]; then
         let new_x=new_x+1920
     fi
 
     echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
     echo "$orig_w,$orig_h --> $new_width,$new_height"
+    xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
 fi
-xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
 
 xdotool windowmove $window $new_x $new_y
 xdotool windowsize $window $new_width $new_height
