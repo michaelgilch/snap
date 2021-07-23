@@ -79,6 +79,14 @@ function get_window_geometry() {
     echo "Current Window Geometry: $curr_x, $curr_y, $curr_w, $curr_h"
 }
 
+function get_window_frame() {
+    window_frame=$(xprop -id $window _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
+    left_frame=$(echo $window_frame | cut -d' ' -f1)
+    right_frame=$(echo $window_frame | cut -d' ' -f2)
+    top_frame=$(echo $window_frame | cut -d' ' -f3)
+    bottom_frame=$(echo $window_frame | cut -d' ' -f4)
+}
+
 function reset_stored_geometry() {
     xprop -id "$window" -remove _SNAP_STATE
 }
@@ -87,6 +95,7 @@ get_monitor_count
 get_screen_geometry
 get_active_window
 get_window_geometry
+get_window_frame
 get_window_state
 get_window_monitor
 
@@ -141,16 +150,16 @@ else
     
     case $new_y_quad in 
         -1)
-            let new_y=$screen_height/2+22+2
-            let new_height=$screen_height/2-22
+            let new_y=$screen_height/2+$top_frame+$bottom_frame+1
+            let new_height=$screen_height/2-$top_frame
             ;;
         0)
             let new_y=$screen_y_start
-            let new_height=$screen_height-24-1
+            let new_height=$screen_height-$top_frame-$bottom_frame-1
             ;;
         1)
             let new_y=$screen_y_start
-            let new_height=$screen_height/2-22-2
+            let new_height=$screen_height/2-$top_frame-$bottom_frame
             ;;
     esac
     
