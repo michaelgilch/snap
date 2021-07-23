@@ -58,10 +58,9 @@ function get_window_state() {
 function get_window_monitor() {
     monitor=1
     
-    if [ "$orig_x" -gt 1920 ]; then
+    if [ "$orig_x" -gt "$screen_width" ]; then
         monitor=2
     fi
-    echo "Monitor: $monitor"
 }
 
 function get_window_geometry() {
@@ -106,13 +105,11 @@ elif [ $cmd == 'd' ]; then
     let new_y_quad=$last_y_quad-1
 fi
 
-echo "$new_x_quad"
 if [ $new_x_quad -gt 1 ] || [ $new_x_quad -lt -1 ]; then
     new_x_quad=$last_x_quad
     echo "x out of range"
 fi
 
-echo "$new_y_quad"
 if [ $new_y_quad -gt 1 ] || [ $new_y_quad -lt -1 ]; then
     new_y_quad=$last_y_quad
     echo "y out of range"
@@ -129,39 +126,38 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
 else
     case $new_x_quad in
         -1)
-            let new_x=0
-            let new_width=1920/2
+            let new_x=$screen_x_start
+            let new_width=$screen_width/2
             ;;
         0)
-            let new_x=0
-            let new_width=1920
+            let new_x=$screen_x_start
+            let new_width=$screen_width
             ;;
         1)
-            let new_x=1920/2
-            let new_width=1920/2
+            let new_x=$screen_width/2
+            let new_width=$screen_width/2
             ;;
     esac
     
     case $new_y_quad in 
         -1)
-            let new_y=1054/2+22+2
-            let new_height=1054/2-22
+            let new_y=$screen_height/2+22+2
+            let new_height=$screen_height/2-22
             ;;
         0)
-            let new_y=26
-            let new_height=1054-24-1
+            let new_y=$screen_y_start
+            let new_height=$screen_height-24-1
             ;;
         1)
-            let new_y=26
-            let new_height=1054/2-22-2
+            let new_y=$screen_y_start
+            let new_height=$screen_height/2-22-2
             ;;
     esac
     
     get_window_monitor
 
-    echo "Monitor = $monitor"
     if [ "$monitor" == 2 ]; then
-        let new_x=new_x+1920
+        let new_x=$new_x+$screen_width
     fi
 
     echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
