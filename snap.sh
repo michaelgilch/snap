@@ -7,9 +7,37 @@
 # - screens have same resolutions
 # - panels are present on every screen, in the same location, and of the same size
 
+function usage() {
+    echo "Syntax: snap.sh [l|r|u|d]"
+    echo "  l  snap left"
+    echo "  r  snap right"
+    echo "  u  snap up"
+    echo "  d  snap down"
+    echo 
+    echo "  ______________________________________________"
+    echo "  |              |              |              |"
+    echo "  |   top-left   |   full top   |   top-right  |"
+    echo "  |______________|______________|______________|"
+    echo "  |              |              |              |"
+    echo "  |  full left   |   original   |  full right  |"
+    echo "  |______________|______________|______________|"
+    echo "  |              |              |              |"
+    echo "  |  bottom-left | full bottom  | bottom right |"
+    echo "  |______________|______________|______________|"
+    echo
+    echo "Thinking of each monitor as a 3x3 grid:"
+    echo " - Each window, regardless of starting position,"
+    echo "   will start in the 'original' unsnapped position."
+    echo " - Movement in any specific direction will snap the"
+    echo "   window to the appropriate grid."
+    echo " - To return a window to its unsnapped position,"
+    echo "   simply snap it back to the 'original' position."
+    echo 
+}
+
 function get_monitor_count() {
     num_monitors=$(xrandr -q | grep -c " connected")
-    echo "Num Monitors = $num_monitors"
+    # echo "Num Monitors = $num_monitors"
 }
 
 function get_screen_geometry() {
@@ -20,17 +48,18 @@ function get_screen_geometry() {
     let screen_width=$(echo $screen_dimensions | cut -d' ' -f3)/num_monitors
     screen_height=$(echo $screen_dimensions | cut -d' ' -f4)
     
-    echo "Screen Geometry = $screen_x_start, $screen_y_start, $screen_width, $screen_height"
+    # echo "Screen Geometry = $screen_x_start, $screen_y_start, $screen_width, $screen_height"
 }
 
 function get_active_window() {
     window=$(xdotool getactivewindow)
-    echo "Active Window = $window"
+    # echo "Active Window = $window"
 }
 
 function get_window_state() {
     xprop -id $window | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
+        echo "Window is already snapped."
         window_state=$(xprop -id $window _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
         let orig_x=$(echo $window_state | cut -d' ' -f1)
         let orig_y=$(echo $window_state | cut -d' ' -f2)
@@ -42,17 +71,18 @@ function get_window_state() {
         let last_y=$(echo $window_state | cut -d' ' -f8)
         let last_w=$(echo $window_state | cut -d' ' -f9)
         let last_h=$(echo $window_state | cut -d' ' -f10)
+        echo "Original Geometry = $orig_x, $orig_y, $orig_w, $orig_h"
+        echo "Current Geometry =  $last_x, $last_y, $last_w, $last_h"
     else
-        echo "Window has not yet been snapped. Starting at Quadrant [0,0]"
+        echo "Window is not yet snapped."
         orig_x=$curr_x
         orig_y=$curr_y
         orig_w=$curr_w
         orig_h=$curr_h
         let last_x_quad=0
         let last_y_quad=0
-        echo "Original Window Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
+        echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
     fi
-    echo "Window State = $window_state"
 }
 
 function get_window_monitor() {
@@ -91,9 +121,26 @@ function reset_stored_geometry() {
     xprop -id "$window" -remove _SNAP_STATE
 }
 
+DEBUG=false
+DIRECTION=""
+
+if [ $# -eq 0 ] || [ $# -gt 1 ]; then
+   usage
+   exit
+fi
+
+case $1 in
+    l|r|u|d) DIRECTION="$1"
+        ;;
+    *)
+        usage; exit
+        ;;
+esac
+          
 get_monitor_count
 get_screen_geometry
 get_active_window
+
 get_window_geometry
 get_window_frame
 get_window_state
@@ -103,14 +150,13 @@ get_window_monitor
 new_x_quad=$last_x_quad
 new_y_quad=$last_y_quad
 
-cmd=$1
-if [ $cmd == 'l' ]; then
+if [ $DIRECTION == 'l' ]; then
     let new_x_quad=$last_x_quad-1
-elif [ $cmd == 'r' ]; then
+elif [ $DIRECTION == 'r' ]; then
     let new_x_quad=$last_x_quad+1
-elif [ $cmd == 'u' ]; then
+elif [ $DIRECTION == 'u' ]; then
     let new_y_quad=$last_y_quad+1
-elif [ $cmd == 'd' ]; then
+elif [ $DIRECTION == 'd' ]; then
     let new_y_quad=$last_y_quad-1
 fi
 
@@ -143,7 +189,7 @@ else
             let new_width=$screen_width
             ;;
         1)
-            let new_x=$screen_width/2
+            let new_x=$screen_width/2+1
             let new_width=$screen_width/2
             ;;
     esac
@@ -169,11 +215,16 @@ else
         let new_x=$new_x+$screen_width
     fi
 
-    echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-    echo "$orig_w,$orig_h --> $new_width,$new_height"
+    # echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
+    # echo "$orig_w,$orig_h --> $new_width,$new_height"
+    # echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
     xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
 fi
 
+echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
+echo "$orig_w,$orig_h --> $new_width,$new_height"
+echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
+    
 xdotool windowmove $window $new_x $new_y
 xdotool windowsize $window $new_width $new_height
 
