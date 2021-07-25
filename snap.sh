@@ -48,12 +48,17 @@ function get_screen_geometry() {
     let screen_width=$(echo $screen_dimensions | cut -d' ' -f3)/num_monitors
     screen_height=$(echo $screen_dimensions | cut -d' ' -f4)
     
-    # echo "Screen Geometry = $screen_x_start, $screen_y_start, $screen_width, $screen_height"
+    echo "Screen Geometry:"
+    echo "  X Start: $screen_x_start"
+    echo "  Y Start: $screen_y_start"
+    echo "  Width:   $screen_width"
+    echo "  Height:  $screen_height"
 }
 
 function get_active_window() {
     window=$(xdotool getactivewindow)
-    # echo "Active Window = $window"
+    echo "Active Window:"
+    echo "  id:      $window"
 }
 
 function get_window_state() {
@@ -101,12 +106,25 @@ function get_window_geometry() {
                    -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
                    -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/b=\1/p" \
                    -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/t=\1/p" )
+    
+    echo "Current Window Geometry:"
+    echo "  Abs X:   $x"
+    echo "  Abs Y:   $y"
+    echo "  Rel X:   $b"
+    echo "  Rel Y:   $t"
+    echo "  Width:   $w"
+    echo "  Height:  $h"
+
     let curr_x=$x-$b
     let curr_y=$y-$t
     let curr_w=$w+2*$b
     let curr_h=$h+$t+$b
 
-    echo "Current Window Geometry: $curr_x, $curr_y, $curr_w, $curr_h"
+    echo "Calcuated Window Geometry:"
+    echo "  Curr X:  $curr_x"
+    echo "  Curr Y:  $curr_y"
+    echo "  Curr W:  $curr_w"
+    echo "  Curr H:  $curr_h"
 }
 
 function get_window_frame() {
@@ -115,9 +133,16 @@ function get_window_frame() {
     right_frame=$(echo $window_frame | cut -d' ' -f2)
     top_frame=$(echo $window_frame | cut -d' ' -f3)
     bottom_frame=$(echo $window_frame | cut -d' ' -f4)
+
+    echo "Window Frame Geometry:"
+    echo "  Left:   $left_frame"
+    echo "  Right:  $right_frame"
+    echo "  Top:    $top_frame"
+    echo "  Bottom: $bottom_frame"
 }
 
 function reset_stored_geometry() {
+    echo "Removing xprop _SNAP_STATE"
     xprop -id "$window" -remove _SNAP_STATE
 }
 
