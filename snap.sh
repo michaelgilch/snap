@@ -240,14 +240,8 @@ else
         let new_x=$new_x+$screen_width
     fi
 
-    # echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-    # echo "$orig_w,$orig_h --> $new_w,$new_h"
-    # echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
     xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
 fi
-
-echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-echo "$orig_w,$orig_h --> $new_w,$new_h"
 
 echo "Snapping to:"
 echo "  Quadrant: $new_x_quad, $new_y_quad"
