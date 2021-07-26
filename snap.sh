@@ -199,38 +199,38 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    new_width=$orig_w
-    new_height=$orig_h
+    new_w=$orig_w
+    let new_h=$orig_h-$top_frame-$bottom_frame
     
     reset_stored_geometry
 else
     case $new_x_quad in
         -1)
             let new_x=$screen_x_start
-            let new_width=$screen_width/2
+            let new_w=$screen_width/2-$left_frame-$right_frame
             ;;
         0)
             let new_x=$screen_x_start
-            let new_width=$screen_width
+            let new_w=$screen_width-$left_frame-$right_frame
             ;;
         1)
             let new_x=$screen_width/2+1
-            let new_width=$screen_width/2
+            let new_w=$screen_width/2-$left_frame-$right_frame
             ;;
     esac
     
     case $new_y_quad in 
         -1)
             let new_y=$screen_height/2+$top_frame+$bottom_frame+1
-            let new_height=$screen_height/2-$top_frame
+            let new_h=$screen_height/2-$top_frame-$bottom_frame
             ;;
         0)
             let new_y=$screen_y_start
-            let new_height=$screen_height-$top_frame-$bottom_frame-1
+            let new_h=$screen_height-$top_frame-$bottom_frame-1
             ;;
         1)
             let new_y=$screen_y_start
-            let new_height=$screen_height/2-$top_frame-$bottom_frame
+            let new_h=$screen_height/2-$top_frame-$bottom_frame
             ;;
     esac
     
@@ -241,15 +241,21 @@ else
     fi
 
     # echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-    # echo "$orig_w,$orig_h --> $new_width,$new_height"
-    # echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
-    xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
+    # echo "$orig_w,$orig_h --> $new_w,$new_h"
+    # echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
+    xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
 fi
 
 echo "$last_x_quad,$last_y_quad --> $new_x_quad,$new_y_quad"
-echo "$orig_w,$orig_h --> $new_width,$new_height"
-echo "Snapping to: $new_x_quad, $new_y_quad, $new_x, $new_y, $new_width, $new_height"
+echo "$orig_w,$orig_h --> $new_w,$new_h"
+
+echo "Snapping to:"
+echo "  Quadrant: $new_x_quad, $new_y_quad"
+echo "  New X:    $new_x"
+echo "  New Y:    $new_y"
+echo "  New W:    $new_w"
+echo "  New H:    $new_h"
     
 xdotool windowmove $window $new_x $new_y
-xdotool windowsize $window $new_width $new_height
+xdotool windowsize $window $new_w $new_h
 
