@@ -8,7 +8,7 @@
 # - panels are present on every screen, in the same location, and of the same size
 
 function usage() {
-    echo "Syntax: snap.sh [l|r|u|d]"
+    echo "Syntax: snap [l|r|u|d]"
     echo "  l  snap left"
     echo "  r  snap right"
     echo "  u  snap up"
