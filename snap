@@ -14,25 +14,6 @@ function usage() {
     echo "  u  snap up"
     echo "  d  snap down"
     echo 
-    echo "  ______________________________________________"
-    echo "  |              |              |              |"
-    echo "  |   top-left   |   full top   |   top-right  |"
-    echo "  |______________|______________|______________|"
-    echo "  |              |              |              |"
-    echo "  |  full left   |   original   |  full right  |"
-    echo "  |______________|______________|______________|"
-    echo "  |              |              |              |"
-    echo "  |  bottom-left | full bottom  | bottom right |"
-    echo "  |______________|______________|______________|"
-    echo
-    echo "Thinking of each monitor as a 3x3 grid:"
-    echo " - Each window, regardless of starting position,"
-    echo "   will start in the 'original' unsnapped position."
-    echo " - Movement in any specific direction will snap the"
-    echo "   window to the appropriate grid."
-    echo " - To return a window to its unsnapped position,"
-    echo "   simply snap it back to the 'original' position."
-    echo 
 }
 
 function get_monitor_count() {
