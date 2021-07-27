@@ -37,7 +37,7 @@ function usage() {
 
 function get_monitor_count() {
     num_monitors=$(xrandr -q | grep -c " connected")
-    # echo "Num Monitors = $num_monitors"
+    echo "Num Monitors: $num_monitors"
 }
 
 function get_screen_geometry() {
@@ -57,8 +57,7 @@ function get_screen_geometry() {
 
 function get_active_window() {
     window=$(xdotool getactivewindow)
-    echo "Active Window:"
-    echo "  id:      $window"
+    echo "Active Window: $window"
 }
 
 function get_window_state() {
@@ -117,7 +116,7 @@ function get_window_geometry() {
 
     let curr_x=$x-$b
     let curr_y=$y-$t
-    let curr_w=$w+2*$b
+    let curr_w=$w+$b
     let curr_h=$h+$t+$b
 
     echo "Calcuated Window Geometry:"
@@ -199,7 +198,7 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    new_w=$orig_w
+    let new_w=$orig_w-$b
     let new_h=$orig_h-$top_frame-$bottom_frame
     
     reset_stored_geometry
@@ -253,3 +252,4 @@ echo "  New H:    $new_h"
 xdotool windowmove $window $new_x $new_y
 xdotool windowsize $window $new_w $new_h
 
+get_window_geometry
