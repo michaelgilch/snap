@@ -7,6 +7,10 @@
 # - screens have same resolutions
 # - panels are present on every screen, in the same location, and of the same size
 
+WINDOW=0
+NUM_MONITORS=0
+DIRECTION=""
+
 function usage() {
     echo "Syntax: snap [l|r|u|d]"
     echo "  l  snap left"
@@ -16,36 +20,51 @@ function usage() {
     echo 
 }
 
+# Sets NUM_MONITORS
 function get_monitor_count() {
-    num_monitors=$(xrandr -q | grep -c " connected")
-    echo "Num Monitors: $num_monitors"
+    NUM_MONITORS=$(xrandr -q | grep -c " connected")
+    echo "Num Monitors: $NUM_MONITORS"
 }
 
-function get_screen_geometry() {
-    screen_dimensions=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
+# Sets the Screen Geometries
+#   SCREEN_X_START  starting X coordinate of the primary monitor, not including panels and docks
+#   SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
+#   SCREEN_WIDTH    usable width of each screen, not including panels and docks
+#   SCREEN_HEIGHT   usable height of each screen, not including panels and docks
+function get_desktop_geometry() {
 
-    screen_x_start=$(echo $screen_dimensions | cut -d' ' -f1)
-    screen_y_start=$(echo $screen_dimensions | cut -d' ' -f2)
-    let screen_width=$(echo $screen_dimensions | cut -d' ' -f3)/num_monitors
-    screen_height=$(echo $screen_dimensions | cut -d' ' -f4)
+    # _NET_WORKAREA contains the starting x coordinate, starting y coordinate, width, and height
+    # of each desktop workspace.
+    # Docks and Panels are taken into account with all 4 values, not including their sizes as 
+    # usable realestate.
+    # All desktop workspaces should have the same geometries, as far as I know, so we only need
+    # the first set of measurements.
+    desktop_geom_qry_results=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
+
+    SCREEN_X_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f1)
+    SCREEN_Y_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f2)
+    desktop_width=$(echo "$desktop_geom_qry_results" | cut -d' ' -f3)
+    SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
+    SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
     
-    echo "Screen Geometry:"
-    echo "  X Start: $screen_x_start"
-    echo "  Y Start: $screen_y_start"
-    echo "  Width:   $screen_width"
-    echo "  Height:  $screen_height"
+    echo "Desktop Geometry:"
+    echo "  X Start: $SCREEN_X_START"
+    echo "  Y Start: $SCREEN_Y_START"
+    echo "  Width:   $SCREEN_WIDTH"
+    echo "  Height:  $SCREEN_HEIGHT"
 }
 
+# Sets WINDOW to the active window ID
 function get_active_window() {
-    window=$(xdotool getactivewindow)
-    echo "Active Window: $window"
+    WINDOW=$(xdotool getactivewindow)
+    echo "Active Window: $WINDOW"
 }
 
 function get_window_state() {
-    xprop -id $window | grep "_SNAP_STATE" >/dev/null
+    xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
     if [ $? == 0 ]; then
         echo "Window is already snapped."
-        window_state=$(xprop -id $window _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
+        window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
         let orig_x=$(echo $window_state | cut -d' ' -f1)
         let orig_y=$(echo $window_state | cut -d' ' -f2)
         let orig_w=$(echo $window_state | cut -d' ' -f3)
@@ -73,13 +92,13 @@ function get_window_state() {
 function get_window_monitor() {
     monitor=1
     
-    if [ "$orig_x" -gt "$screen_width" ]; then
+    if [ "$orig_x" -gt "$SCREEN_WIDTH" ]; then
         monitor=2
     fi
 }
 
 function get_window_geometry() {
-    eval $(xwininfo -id $window |
+    eval $(xwininfo -id "$WINDOW" |
             sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
                    -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
                    -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
@@ -108,7 +127,7 @@ function get_window_geometry() {
 }
 
 function get_window_frame() {
-    window_frame=$(xprop -id $window _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
+    window_frame=$(xprop -id "$WINDOW" _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
     left_frame=$(echo $window_frame | cut -d' ' -f1)
     right_frame=$(echo $window_frame | cut -d' ' -f2)
     top_frame=$(echo $window_frame | cut -d' ' -f3)
@@ -123,11 +142,10 @@ function get_window_frame() {
 
 function reset_stored_geometry() {
     echo "Removing xprop _SNAP_STATE"
-    xprop -id "$window" -remove _SNAP_STATE
+    xprop -id "$WINDOW" -remove _SNAP_STATE
 }
 
-DEBUG=false
-DIRECTION=""
+
 
 if [ $# -eq 0 ] || [ $# -gt 1 ]; then
    usage
@@ -141,10 +159,11 @@ case $1 in
         usage; exit
         ;;
 esac
-          
-get_monitor_count
-get_screen_geometry
+
 get_active_window
+
+get_monitor_count
+get_desktop_geometry
 
 get_window_geometry
 get_window_frame
@@ -155,13 +174,13 @@ get_window_monitor
 new_x_quad=$last_x_quad
 new_y_quad=$last_y_quad
 
-if [ $DIRECTION == 'l' ]; then
+if [ "$DIRECTION" == 'l' ]; then
     let new_x_quad=$last_x_quad-1
-elif [ $DIRECTION == 'r' ]; then
+elif [ "$DIRECTION" == 'r' ]; then
     let new_x_quad=$last_x_quad+1
-elif [ $DIRECTION == 'u' ]; then
+elif [ "$DIRECTION" == 'u' ]; then
     let new_y_quad=$last_y_quad+1
-elif [ $DIRECTION == 'd' ]; then
+elif [ "$DIRECTION" == 'd' ]; then
     let new_y_quad=$last_y_quad-1
 fi
 
@@ -186,41 +205,41 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
 else
     case $new_x_quad in
         -1)
-            let new_x=$screen_x_start
-            let new_w=$screen_width/2-$left_frame-$right_frame
+            let new_x=$SCREEN_X_START
+            let new_w=$SCREEN_WIDTH/2-$left_frame-$right_frame
             ;;
         0)
-            let new_x=$screen_x_start
-            let new_w=$screen_width-$left_frame-$right_frame
+            let new_x=$SCREEN_X_START
+            let new_w=$SCREEN_WIDTH-$left_frame-$right_frame
             ;;
         1)
-            let new_x=$screen_width/2+1
-            let new_w=$screen_width/2-$left_frame-$right_frame
+            let new_x=$SCREEN_WIDTH/2+1
+            let new_w=$SCREEN_WIDTH/2-$left_frame-$right_frame
             ;;
     esac
     
     case $new_y_quad in 
         -1)
-            let new_y=$screen_height/2+$top_frame+$bottom_frame+1
-            let new_h=$screen_height/2-$top_frame-$bottom_frame
+            let new_y=$SCREEN_HEIGHT/2+$top_frame+$bottom_frame+1
+            let new_h=$SCREEN_HEIGHT/2-$top_frame-$bottom_frame
             ;;
         0)
-            let new_y=$screen_y_start
-            let new_h=$screen_height-$top_frame-$bottom_frame-1
+            let new_y=$SCREEN_Y_START
+            let new_h=$SCREEN_HEIGHT-$top_frame-$bottom_frame-1
             ;;
         1)
-            let new_y=$screen_y_start
-            let new_h=$screen_height/2-$top_frame-$bottom_frame
+            let new_y=$SCREEN_Y_START
+            let new_h=$SCREEN_HEIGHT/2-$top_frame-$bottom_frame
             ;;
     esac
     
     get_window_monitor
 
     if [ "$monitor" == 2 ]; then
-        let new_x=$new_x+$screen_width
+        let new_x=$new_x+$SCREEN_WIDTH
     fi
 
-    xprop -id $window -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
+    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
 fi
 
 echo "Snapping to:"
@@ -230,7 +249,7 @@ echo "  New Y:    $new_y"
 echo "  New W:    $new_w"
 echo "  New H:    $new_h"
     
-xdotool windowmove $window $new_x $new_y
-xdotool windowsize $window $new_w $new_h
+xdotool windowmove "$WINDOW" $new_x $new_y
+xdotool windowsize "$WINDOW" $new_w $new_h
 
 get_window_geometry
