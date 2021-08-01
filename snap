@@ -64,40 +64,50 @@ function get_active_window() {
     echo "Active Window: $WINDOW"
 }
 
+# Determines if window has already been snapped and sets original geometries
+#   ORIG_X      original unsnapped X position
+#   ORIG_Y      original unsnapped Y position
+#   ORIG_W      original unsnapped width
+#   ORIG_H      original unsnapped height
+#   LAST_X
+#   LAST_Y
+#   LAST_W
+#   LAST_H
+#   LAST_X_QUAD
+#   LAST_Y_QUAD
 function get_window_state() {
     xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
     # shellcheck disable=SC2181
     if [ $? == 0 ]; then
         echo "Window is already snapped."
+        # _SNAP_STATE stores original x, y, w, h, last x/y quadrant, and the last x, y, w, and h.
         window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
-        orig_x=$(echo "$window_state" | cut -d' ' -f1)
-        orig_y=$(echo "$window_state" | cut -d' ' -f2)
-        orig_w=$(echo "$window_state" | cut -d' ' -f3)
-        orig_h=$(echo "$window_state" | cut -d' ' -f4)
-        last_x_quad=$(echo "$window_state" | cut -d' ' -f5)
-        last_y_quad=$(echo "$window_state" | cut -d' ' -f6)
-        last_x=$(echo "$window_state" | cut -d' ' -f7)
-        last_y=$(echo "$window_state" | cut -d' ' -f8)
-        last_w=$(echo "$window_state" | cut -d' ' -f9)
-        last_h=$(echo "$window_state" | cut -d' ' -f10)
-        echo "Original Geometry = $orig_x, $orig_y, $orig_w, $orig_h"
-        echo "Current Geometry =  $last_x, $last_y, $last_w, $last_h"
+
+        ORIG_X=$(echo "$window_state" | cut -d' ' -f1)
+        ORIG_Y=$(echo "$window_state" | cut -d' ' -f2)
+        ORIG_W=$(echo "$window_state" | cut -d' ' -f3)
+        ORIG_H=$(echo "$window_state" | cut -d' ' -f4)
+        LAST_X_QUAD=$(echo "$window_state" | cut -d' ' -f5)
+        LAST_Y_QUAD=$(echo "$window_state" | cut -d' ' -f6)
+        LAST_X=$(echo "$window_state" | cut -d' ' -f7)
+        LAST_Y=$(echo "$window_state" | cut -d' ' -f8)
+        LAST_W=$(echo "$window_state" | cut -d' ' -f9)
+        LAST_H=$(echo "$window_state" | cut -d' ' -f10)
     else
         echo "Window is not yet snapped."
-        orig_x=$CURR_X
-        orig_y=$CURR_Y
-        orig_w=$CURR_W
-        orig_h=$CURR_H
-        last_x_quad=0
-        last_y_quad=0
-        echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
+        ORIG_X=$CURR_X
+        ORIG_Y=$CURR_Y
+        ORIG_W=$CURR_W
+        ORIG_H=$CURR_H
+        LAST_X_QUAD=0
+        LAST_Y_QUAD=0
     fi
 }
 
 function get_window_monitor() {
     monitor=1
     
-    if [ "$orig_x" -ge "$SCREEN_WIDTH" ]; then
+    if [ "$ORIG_X" -ge "$SCREEN_WIDTH" ]; then
         monitor=2
     fi
 }
@@ -162,12 +172,10 @@ function get_window_borders() {
     echo "  Bottom: $BORDER_BOTTOM"
 }
 
-function reset_stored_geometry() {
+function remove_stored_geometry() {
     echo "Removing xprop _SNAP_STATE"
     xprop -id "$WINDOW" -remove _SNAP_STATE
 }
-
-
 
 if [ $# -eq 0 ] || [ $# -gt 1 ]; then
    usage
@@ -193,37 +201,37 @@ get_window_state
 get_window_monitor
 
 
-new_x_quad=$last_x_quad
-new_y_quad=$last_y_quad
+new_x_quad=$LAST_X_QUAD
+new_y_quad=$LAST_Y_QUAD
 
 if [ "$DIRECTION" == 'l' ]; then
-    new_x_quad=$((last_x_quad-1))
+    new_x_quad=$((LAST_X_QUAD-1))
 elif [ "$DIRECTION" == 'r' ]; then
-    new_x_quad=$((last_x_quad+1))
+    new_x_quad=$((LAST_X_QUAD+1))
 elif [ "$DIRECTION" == 'u' ]; then
-    new_y_quad=$((last_y_quad+1))
+    new_y_quad=$((LAST_Y_QUAD+1))
 elif [ "$DIRECTION" == 'd' ]; then
-    new_y_quad=$((last_y_quad-1))
+    new_y_quad=$((LAST_Y_QUAD-1))
 fi
 
 if [ "$new_x_quad" -gt 1 ] || [ "$new_x_quad" -lt -1 ]; then
-    new_x_quad=$last_x_quad
+    new_x_quad=$LAST_X_QUAD
     echo "x out of range"
 fi
 
 if [ "$new_y_quad" -gt 1 ] || [ "$new_y_quad" -lt -1 ]; then
-    new_y_quad=$last_y_quad
+    new_y_quad=$LAST_Y_QUAD
     echo "y out of range"
 fi
 
 if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 0 ]; then
     echo "Returning to original position"
-    new_x=$orig_x
-    new_y=$orig_y
-    new_w=$orig_w
-    new_h=$orig_h
+    new_x=$ORIG_X
+    new_y=$ORIG_Y
+    new_w=$ORIG_W
+    new_h=$ORIG_H
     
-    reset_stored_geometry
+    remove_stored_geometry
 else
     case $new_x_quad in
         -1)
@@ -235,7 +243,8 @@ else
             new_w=$((SCREEN_WIDTH-BORDER_LEFT-BORDER_RIGHT))
             ;;
         1)
-            new_x=$((SCREEN_WIDTH/2+1))
+            # new_x=$((SCREEN_WIDTH/2+1))
+            new_x=$((SCREEN_WIDTH/2))
             new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
             ;;
     esac
@@ -261,7 +270,7 @@ else
         new_x=$((new_x+SCREEN_WIDTH))
     fi
 
-    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
+    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
 fi
 
 echo "Snapping to:"
