@@ -7,6 +7,10 @@
 # - screens have same resolutions
 # - panels are present on every screen, in the same location, and of the same size
 
+# For unassigned variables in get_window_geometry()
+# shellcheck disable=SC2154
+
+
 WINDOW=0
 NUM_MONITORS=0
 DIRECTION=""
@@ -26,7 +30,7 @@ function get_monitor_count() {
     echo "Num Monitors: $NUM_MONITORS"
 }
 
-# Sets the Screen Geometries
+# Gets the Screen Geometries
 #   SCREEN_X_START  starting X coordinate of the primary monitor, not including panels and docks
 #   SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
 #   SCREEN_WIDTH    usable width of each screen, not including panels and docks
@@ -62,19 +66,20 @@ function get_active_window() {
 
 function get_window_state() {
     xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
+    # shellcheck disable=SC2181
     if [ $? == 0 ]; then
         echo "Window is already snapped."
         window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
-        let orig_x=$(echo $window_state | cut -d' ' -f1)
-        let orig_y=$(echo $window_state | cut -d' ' -f2)
-        let orig_w=$(echo $window_state | cut -d' ' -f3)
-        let orig_h=$(echo $window_state | cut -d' ' -f4)
-        let last_x_quad=$(echo $window_state | cut -d' ' -f5)
-        let last_y_quad=$(echo $window_state | cut -d' ' -f6)
-        let last_x=$(echo $window_state | cut -d' ' -f7)
-        let last_y=$(echo $window_state | cut -d' ' -f8)
-        let last_w=$(echo $window_state | cut -d' ' -f9)
-        let last_h=$(echo $window_state | cut -d' ' -f10)
+        orig_x=$(echo "$window_state" | cut -d' ' -f1)
+        orig_y=$(echo "$window_state" | cut -d' ' -f2)
+        orig_w=$(echo "$window_state" | cut -d' ' -f3)
+        orig_h=$(echo "$window_state" | cut -d' ' -f4)
+        last_x_quad=$(echo "$window_state" | cut -d' ' -f5)
+        last_y_quad=$(echo "$window_state" | cut -d' ' -f6)
+        last_x=$(echo "$window_state" | cut -d' ' -f7)
+        last_y=$(echo "$window_state" | cut -d' ' -f8)
+        last_w=$(echo "$window_state" | cut -d' ' -f9)
+        last_h=$(echo "$window_state" | cut -d' ' -f10)
         echo "Original Geometry = $orig_x, $orig_y, $orig_w, $orig_h"
         echo "Current Geometry =  $last_x, $last_y, $last_w, $last_h"
     else
@@ -83,8 +88,8 @@ function get_window_state() {
         orig_y=$CURR_Y
         orig_w=$CURR_W
         orig_h=$CURR_H
-        let last_x_quad=0
-        let last_y_quad=0
+        last_x_quad=0
+        last_y_quad=0
         echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
     fi
 }
@@ -105,13 +110,13 @@ function get_window_monitor() {
 function get_window_geometry() {
     # The most accurate representation of X and Y coordinates I could find is using 
     # xwininfo and calculating based off the absolute and relative positions.
-    eval $(xwininfo -id "$WINDOW" |
+    eval "$(xwininfo -id "$WINDOW" |
             sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
                    -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
-                   -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
-                   -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
                    -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/a=\1/p" \
-                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/b=\1/p" )
+                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/b=\1/p" \
+                   -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
+                   -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" )"
     
     echo "Current Window Geometry:"
     echo "  Abs X:   $x"
@@ -136,18 +141,25 @@ function get_window_geometry() {
     echo "  Curr H:  $CURR_H"
 }
 
-function get_window_frame() {
+# Gets the window borders
+#   BORDER_LEFT     the left border size
+#   BORDER_RIGHT    the right border size
+#   BORDER_TOP      the top border size, including titlebar if existant
+#   BORDER_BOTTOM   the bottom border size
+function get_window_borders() {
+    # _NET_FRAME_EXTENTS contains the left, right, top, and bottom borders, in that order
     window_frame=$(xprop -id "$WINDOW" _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
-    left_frame=$(echo $window_frame | cut -d' ' -f1)
-    right_frame=$(echo $window_frame | cut -d' ' -f2)
-    top_frame=$(echo $window_frame | cut -d' ' -f3)
-    bottom_frame=$(echo $window_frame | cut -d' ' -f4)
+
+    BORDER_LEFT=$(echo "$window_frame" | cut -d' ' -f1)
+    BORDER_RIGHT=$(echo "$window_frame" | cut -d' ' -f2)
+    BORDER_TOP=$(echo "$window_frame" | cut -d' ' -f3)
+    BORDER_BOTTOM=$(echo "$window_frame" | cut -d' ' -f4)
 
     echo "Window Frame Geometry:"
-    echo "  Left:   $left_frame"
-    echo "  Right:  $right_frame"
-    echo "  Top:    $top_frame"
-    echo "  Bottom: $bottom_frame"
+    echo "  Left:   $BORDER_LEFT"
+    echo "  Right:  $BORDER_RIGHT"
+    echo "  Top:    $BORDER_TOP"
+    echo "  Bottom: $BORDER_BOTTOM"
 }
 
 function reset_stored_geometry() {
@@ -176,7 +188,7 @@ get_monitor_count
 get_desktop_geometry
 
 get_window_geometry
-get_window_frame
+get_window_borders
 get_window_state
 get_window_monitor
 
@@ -185,68 +197,68 @@ new_x_quad=$last_x_quad
 new_y_quad=$last_y_quad
 
 if [ "$DIRECTION" == 'l' ]; then
-    let new_x_quad=$last_x_quad-1
+    new_x_quad=$((last_x_quad-1))
 elif [ "$DIRECTION" == 'r' ]; then
-    let new_x_quad=$last_x_quad+1
+    new_x_quad=$((last_x_quad+1))
 elif [ "$DIRECTION" == 'u' ]; then
-    let new_y_quad=$last_y_quad+1
+    new_y_quad=$((last_y_quad+1))
 elif [ "$DIRECTION" == 'd' ]; then
-    let new_y_quad=$last_y_quad-1
+    new_y_quad=$((last_y_quad-1))
 fi
 
-if [ $new_x_quad -gt 1 ] || [ $new_x_quad -lt -1 ]; then
+if [ "$new_x_quad" -gt 1 ] || [ "$new_x_quad" -lt -1 ]; then
     new_x_quad=$last_x_quad
     echo "x out of range"
 fi
 
-if [ $new_y_quad -gt 1 ] || [ $new_y_quad -lt -1 ]; then
+if [ "$new_y_quad" -gt 1 ] || [ "$new_y_quad" -lt -1 ]; then
     new_y_quad=$last_y_quad
     echo "y out of range"
 fi
 
-if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
+if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    let new_w=$orig_w
-    let new_h=$orig_h
+    new_w=$orig_w
+    new_h=$orig_h
     
     reset_stored_geometry
 else
     case $new_x_quad in
         -1)
-            let new_x=$SCREEN_X_START
-            let new_w=$SCREEN_WIDTH/2-$left_frame-$right_frame
+            new_x=$SCREEN_X_START
+            new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
             ;;
         0)
-            let new_x=$SCREEN_X_START
-            let new_w=$SCREEN_WIDTH-$left_frame-$right_frame
+            new_x=$SCREEN_X_START
+            new_w=$((SCREEN_WIDTH-BORDER_LEFT-BORDER_RIGHT))
             ;;
         1)
-            let new_x=$SCREEN_WIDTH/2+1
-            let new_w=$SCREEN_WIDTH/2-$left_frame-$right_frame
+            new_x=$((SCREEN_WIDTH/2+1))
+            new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
             ;;
     esac
     
     case $new_y_quad in 
         -1)
-            let new_y=$SCREEN_HEIGHT/2+$top_frame+$bottom_frame+1
-            let new_h=$SCREEN_HEIGHT/2-$top_frame-$bottom_frame
+            new_y=$((SCREEN_HEIGHT/2+BORDER_TOP+BORDER_BOTTOM+1))
+            new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
             ;;
         0)
-            let new_y=$SCREEN_Y_START
-            let new_h=$SCREEN_HEIGHT-$top_frame-$bottom_frame-1
+            new_y=$SCREEN_Y_START
+            new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM-1))
             ;;
         1)
-            let new_y=$SCREEN_Y_START
-            let new_h=$SCREEN_HEIGHT/2-$top_frame-$bottom_frame
+            new_y=$SCREEN_Y_START
+            new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
             ;;
     esac
     
     get_window_monitor
 
     if [ "$monitor" == 2 ]; then
-        let new_x=$new_x+$SCREEN_WIDTH
+        new_x=$((new_x+SCREEN_WIDTH))
     fi
 
     xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$orig_x, $orig_y, $orig_w, $orig_h, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
@@ -259,7 +271,7 @@ echo "  New Y:    $new_y"
 echo "  New W:    $new_w"
 echo "  New H:    $new_h"
     
-xdotool windowmove "$WINDOW" $new_x $new_y
-xdotool windowsize "$WINDOW" $new_w $new_h
+xdotool windowmove "$WINDOW" "$new_x" "$new_y"
+xdotool windowsize "$WINDOW" "$new_w" "$new_h"
 
 get_window_geometry
