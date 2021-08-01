@@ -97,7 +97,7 @@ function get_window_state() {
 function get_window_monitor() {
     monitor=1
     
-    if [ "$orig_x" -gt "$SCREEN_WIDTH" ]; then
+    if [ "$orig_x" -ge "$SCREEN_WIDTH" ]; then
         monitor=2
     fi
 }
