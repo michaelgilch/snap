@@ -79,10 +79,10 @@ function get_window_state() {
         echo "Current Geometry =  $last_x, $last_y, $last_w, $last_h"
     else
         echo "Window is not yet snapped."
-        orig_x=$curr_x
-        orig_y=$curr_y
-        orig_w=$curr_w
-        orig_h=$curr_h
+        orig_x=$CURR_X
+        orig_y=$CURR_Y
+        orig_w=$CURR_W
+        orig_h=$CURR_H
         let last_x_quad=0
         let last_y_quad=0
         echo "Original Geometry: $orig_x, $orig_y, $orig_w, $orig_h"
@@ -97,33 +97,46 @@ function get_window_monitor() {
     fi
 }
 
+# Gets the current geometry of the Window
+#   CURR_X  current window X position  
+#   CURR_Y  current window Y position
+#   CURR_W  current window width
+#   CURR_H  current window height
 function get_window_geometry() {
+    # The most accurate representation of X and Y coordinates I could find is using 
+    # xwininfo and calculating based off the absolute and relative positions.
     eval $(xwininfo -id "$WINDOW" |
             sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
                    -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
                    -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
                    -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" \
-                   -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/b=\1/p" \
-                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/t=\1/p" )
+                   -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/a=\1/p" \
+                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/b=\1/p" )
     
     echo "Current Window Geometry:"
     echo "  Abs X:   $x"
     echo "  Abs Y:   $y"
-    echo "  Rel X:   $b"
-    echo "  Rel Y:   $t"
+    echo "  Rel X:   $a"
+    echo "  Rel Y:   $b"
     echo "  Width:   $w"
     echo "  Height:  $h"
 
-    let curr_x=$x-$b
-    let curr_y=$y-$t
-    let curr_w=$w+$b
-    let curr_h=$h+$t+$b
+    # The actual X and Y coordinates of the window need to be calculated by subtracting
+    # the relative X and Y coordinates from the Absolute X and Y coordinates.
+    CURR_X=$((x-a))
+    CURR_Y=$((y-b))
+
+    # The actual Width and Height need to take into account the left, right, top, and bottom
+    # window borders, which includes the titlebar if in existance.
+    get_window_frame
+    CURR_W=$((w+left_frame+right_frame))
+    CURR_H=$((h+top_frame+bottom_frame))
 
     echo "Calcuated Window Geometry:"
-    echo "  Curr X:  $curr_x"
-    echo "  Curr Y:  $curr_y"
-    echo "  Curr W:  $curr_w"
-    echo "  Curr H:  $curr_h"
+    echo "  Curr X:  $CURR_X"
+    echo "  Curr Y:  $CURR_Y"
+    echo "  Curr W:  $CURR_W"
+    echo "  Curr H:  $CURR_H"
 }
 
 function get_window_frame() {
@@ -198,7 +211,7 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    let new_w=$orig_w-$b
+    let new_w=$orig_w-$a             # THIS IS WRONG
     let new_h=$orig_h-$top_frame-$bottom_frame
     
     reset_stored_geometry
