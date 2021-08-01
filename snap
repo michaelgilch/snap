@@ -126,11 +126,8 @@ function get_window_geometry() {
     CURR_X=$((x-a))
     CURR_Y=$((y-b))
 
-    # The actual Width and Height need to take into account the left, right, top, and bottom
-    # window borders, which includes the titlebar if in existance.
-    get_window_frame
-    CURR_W=$((w+left_frame+right_frame))
-    CURR_H=$((h+top_frame+bottom_frame))
+    CURR_W=$w
+    CURR_H=$h
 
     echo "Calcuated Window Geometry:"
     echo "  Curr X:  $CURR_X"
@@ -211,8 +208,8 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    let new_w=$orig_w-$left_frame-$right_frame
-    let new_h=$orig_h-$top_frame-$bottom_frame
+    let new_w=$orig_w
+    let new_h=$orig_h
     
     reset_stored_geometry
 else
