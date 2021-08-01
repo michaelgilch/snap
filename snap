@@ -69,12 +69,12 @@ function get_active_window() {
 #   ORIG_Y      original unsnapped Y position
 #   ORIG_W      original unsnapped width
 #   ORIG_H      original unsnapped height
-#   LAST_X
-#   LAST_Y
-#   LAST_W
-#   LAST_H
-#   LAST_X_QUAD
-#   LAST_Y_QUAD
+#   LAST_X      last snapped X position
+#   LAST_Y      last snapped Y position
+#   LAST_W      last snapped width
+#   LAST_H      last snapped height
+#   LAST_X_QUAD last x quadrant
+#   LAST_Y_QUAD last y quadrant
 function get_window_state() {
     xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
     # shellcheck disable=SC2181
@@ -101,6 +101,21 @@ function get_window_state() {
         ORIG_H=$CURR_H
         LAST_X_QUAD=0
         LAST_Y_QUAD=0
+    fi
+
+    # Verify window has not moved manually since last snap
+    if [ "$LAST_X_QUAD" -ne 0 ] && [ "$LAST_Y_QUAD" -ne 0 ]; then
+        if [ "$LAST_X" -ne "$CURR_X" ] || [ "$LAST_Y" -ne "$CURR_Y" ] ||
+            [ "$LAST_W" -ne "$CURR_W" ] || [ "$LAST_H" -ne "$CURR_H" ]; then
+                remove_stored_geometry
+                echo "Window is no longer snapped."
+                ORIG_X=$CURR_X
+                ORIG_Y=$CURR_Y
+                ORIG_W=$CURR_W
+                ORIG_H=$CURR_H
+                LAST_X_QUAD=0
+                LAST_Y_QUAD=0
+        fi
     fi
 }
 
@@ -243,7 +258,6 @@ else
             new_w=$((SCREEN_WIDTH-BORDER_LEFT-BORDER_RIGHT))
             ;;
         1)
-            # new_x=$((SCREEN_WIDTH/2+1))
             new_x=$((SCREEN_WIDTH/2))
             new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
             ;;

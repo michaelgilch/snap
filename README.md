@@ -54,6 +54,7 @@ Think of each monitor as a 3x3 grid...
 - Moving a window using `snap <direction>` will snap the window to the appropriate grid position, with each of the 4 _full_ grid positions taking up the entire half of the screen.
 - After being snapped to a _full_ position, a window can be snapped further to a corner position.
 - To return a window to its original position, simply snap it back to the _original_ (0,0) grid location.
+- Additionally, manually moving a window from its snapped position (dragging, for example) will remove its stored snapped state.
 
 ## Limitations
 
