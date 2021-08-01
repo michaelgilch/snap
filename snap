@@ -211,7 +211,7 @@ if [ $new_x_quad -eq 0 ] && [ $new_y_quad -eq 0 ]; then
     echo "Returning to original position"
     new_x=$orig_x
     new_y=$orig_y
-    let new_w=$orig_w-$a             # THIS IS WRONG
+    let new_w=$orig_w-$left_frame-$right_frame
     let new_h=$orig_h-$top_frame-$bottom_frame
     
     reset_stored_geometry
