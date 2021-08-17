@@ -10,7 +10,6 @@
 # For unassigned variables in get_window_geometry()
 # shellcheck disable=SC2154
 
-
 WINDOW=0
 NUM_MONITORS=0
 DIRECTION=""
@@ -294,7 +293,7 @@ echo "  New Y:    $new_y"
 echo "  New W:    $new_w"
 echo "  New H:    $new_h"
     
-xdotool windowmove "$WINDOW" "$new_x" "$new_y"
 xdotool windowsize "$WINDOW" "$new_w" "$new_h"
+xdotool windowmove "$WINDOW" "$new_x" "$new_y"
 
 get_window_geometry
