@@ -22,12 +22,12 @@ I could not find a Window snapping utility for Openbox that I was happy with, so
 </keybind>
 <keybind key="W-Up">
     <action name="Execute">
-        <command>snap u</command>
+        <command>snap t</command>
     </action>
 </keybind>
 <keybind key="W-Down">
     <action name="Execute">                                                                   
-        <command>snap d</command>
+        <command>snap b</command>
     </action>
 </keybind>
 ```

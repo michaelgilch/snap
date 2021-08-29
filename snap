@@ -15,11 +15,11 @@ NUM_MONITORS=0
 DIRECTION=""
 
 function usage() {
-    echo "Syntax: snap [l|r|u|d]"
-    echo "  l  snap left"
-    echo "  r  snap right"
-    echo "  u  snap up"
-    echo "  d  snap down"
+    echo "Syntax: snap [l|r|t|b]"
+    echo "  l  snap to left"
+    echo "  r  snap to right"
+    echo "  t  snap to top"
+    echo "  b  snap to bottom"
     echo 
 }
 
@@ -197,7 +197,8 @@ if [ $# -eq 0 ] || [ $# -gt 1 ]; then
 fi
 
 case $1 in
-    l|r|u|d) DIRECTION="$1"
+    l|r|t|b) 
+        DIRECTION="$1"
         ;;
     *)
         usage; exit
@@ -222,9 +223,9 @@ if [ "$DIRECTION" == 'l' ]; then
     new_x_quad=$((LAST_X_QUAD-1))
 elif [ "$DIRECTION" == 'r' ]; then
     new_x_quad=$((LAST_X_QUAD+1))
-elif [ "$DIRECTION" == 'u' ]; then
+elif [ "$DIRECTION" == 't' ]; then
     new_y_quad=$((LAST_Y_QUAD+1))
-elif [ "$DIRECTION" == 'd' ]; then
+elif [ "$DIRECTION" == 'b' ]; then
     new_y_quad=$((LAST_Y_QUAD-1))
 fi
 
