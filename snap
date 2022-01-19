@@ -103,18 +103,16 @@ function get_window_state() {
     fi
 
     # Verify window has not moved manually since last snap
-    if [ "$LAST_X_QUAD" -ne 0 ] && [ "$LAST_Y_QUAD" -ne 0 ]; then
-        if [ "$LAST_X" -ne "$CURR_X" ] || [ "$LAST_Y" -ne "$CURR_Y" ] ||
+    if [ "$LAST_X" -ne "$CURR_X" ] || [ "$LAST_Y" -ne "$CURR_Y" ] ||
             [ "$LAST_W" -ne "$CURR_W" ] || [ "$LAST_H" -ne "$CURR_H" ]; then
-                remove_stored_geometry
-                echo "Window is no longer snapped."
-                ORIG_X=$CURR_X
-                ORIG_Y=$CURR_Y
-                ORIG_W=$CURR_W
-                ORIG_H=$CURR_H
-                LAST_X_QUAD=0
-                LAST_Y_QUAD=0
-        fi
+        remove_stored_geometry
+        echo "Window is no longer snapped."
+        ORIG_X=$CURR_X
+        ORIG_Y=$CURR_Y
+        ORIG_W=$CURR_W
+        ORIG_H=$CURR_H
+        LAST_X_QUAD=0
+        LAST_Y_QUAD=0
     fi
 }
 
