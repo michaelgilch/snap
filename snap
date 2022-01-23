@@ -233,8 +233,12 @@ if [ "$new_x_quad" -gt 1 ] || [ "$new_x_quad" -lt -1 ]; then
 fi
 
 if [ "$new_y_quad" -gt 1 ] || [ "$new_y_quad" -lt -1 ]; then
-    new_y_quad=$LAST_Y_QUAD
-    echo "y out of range"
+    if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 2 ]; then
+        echo "maximizing window"
+    else
+        new_y_quad=$LAST_Y_QUAD
+        echo "y out of range"
+    fi
 fi
 
 if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 0 ]; then
@@ -273,6 +277,10 @@ else
         1)
             new_y=$SCREEN_Y_START
             new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
+            ;;
+        2)  # Special case for maximized window
+            new_y=$SCREEN_Y_START
+            new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM))
             ;;
     esac
     

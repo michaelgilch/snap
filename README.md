@@ -34,9 +34,13 @@ I could not find a Window snapping utility for Openbox that I was happy with, so
 
 ## How it works
 
-Think of each monitor as a 3x3 grid...
+Think of each monitor as a 3x3 grid, with a special case of maximized...
 
-    ______________________________________________
+                   ________________
+                   |              |
+                   |   maximized  |
+                   |     0,2      |
+    _______________|______________|_______________
     |              |              |              |
     |   top-left   |   full top   |   top-right  |
     |     -1,1     |     0,1      |     1,1      |
@@ -72,4 +76,3 @@ For multi-monitor setups, the following assumptions are made:
 - Support for varying panel sizes and locations.
 - Automated installer.
 - Ability to resize/snap to thirds, rather than halfs.
-- Snap up twice to get full screen.
