@@ -23,17 +23,30 @@ function usage() {
     echo 
 }
 
-# Sets NUM_MONITORS
+############################################################
+# Determines the number of monitors connected to the PC.
+#
+# GLOBALS:
+#   NUM_MONITORS
+# ARGS:
+#   None
+############################################################
 function get_monitor_count() {
     NUM_MONITORS=$(xrandr -q | grep -c " connected")
     echo "Num Monitors: $NUM_MONITORS"
 }
 
-# Gets the Screen Geometries
+############################################################
+# Determines the geometry of a single monitor (screen).
+#
+# GLOBALS:
 #   SCREEN_X_START  starting X coordinate of the primary monitor, not including panels and docks
 #   SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
 #   SCREEN_WIDTH    usable width of each screen, not including panels and docks
 #   SCREEN_HEIGHT   usable height of each screen, not including panels and docks
+# ARGS:
+#   None
+############################################################
 function get_desktop_geometry() {
 
     # _NET_WORKAREA contains the starting x coordinate, starting y coordinate, width, and height
@@ -57,13 +70,23 @@ function get_desktop_geometry() {
     echo "  Height:  $SCREEN_HEIGHT"
 }
 
-# Sets WINDOW to the active window ID
+############################################################
+# Determines the ID of the Active Window
+#
+# GLOBALS:
+#   WINDOW
+# ARGS:
+#   None
+############################################################
 function get_active_window() {
     WINDOW=$(xdotool getactivewindow)
     echo "Active Window: $WINDOW"
 }
 
+############################################################
 # Determines if window has already been snapped and sets original geometries
+#
+# GLOBALS:
 #   ORIG_X      original unsnapped X position
 #   ORIG_Y      original unsnapped Y position
 #   ORIG_W      original unsnapped width
@@ -74,6 +97,9 @@ function get_active_window() {
 #   LAST_H      last snapped height
 #   LAST_X_QUAD last x quadrant
 #   LAST_Y_QUAD last y quadrant
+# ARGS:
+#   None
+############################################################
 function get_window_state() {
     xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
     # shellcheck disable=SC2181
@@ -116,6 +142,14 @@ function get_window_state() {
     fi
 }
 
+############################################################
+# Determines the monitor being used by the window.
+#
+# GLOBALS:
+#   monitor
+# ARGS:
+#   None
+############################################################
 function get_window_monitor() {
     monitor=1
     
@@ -124,11 +158,17 @@ function get_window_monitor() {
     fi
 }
 
-# Gets the current geometry of the Window
+############################################################
+# Determines the current geometry of the Active Window
+#
+# GLOBALS:
 #   CURR_X  current window X position  
 #   CURR_Y  current window Y position
 #   CURR_W  current window width
 #   CURR_H  current window height
+# ARGS:
+#   None
+############################################################
 function get_window_geometry() {
     # The most accurate representation of X and Y coordinates I could find is using 
     # xwininfo and calculating based off the absolute and relative positions.
@@ -163,11 +203,17 @@ function get_window_geometry() {
     echo "  Curr H:  $CURR_H"
 }
 
-# Gets the window borders
+############################################################
+# Determines the Active Windows borders.
+#
+# GLOBALS:
 #   BORDER_LEFT     the left border size
 #   BORDER_RIGHT    the right border size
 #   BORDER_TOP      the top border size, including titlebar if existant
 #   BORDER_BOTTOM   the bottom border size
+# ARGS:
+#   None
+############################################################
 function get_window_borders() {
     # _NET_FRAME_EXTENTS contains the left, right, top, and bottom borders, in that order
     window_frame=$(xprop -id "$WINDOW" _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
@@ -184,12 +230,20 @@ function get_window_borders() {
     echo "  Bottom: $BORDER_BOTTOM"
 }
 
+############################################################
+# Clears any stored _SNAP_STATE Geometry of the Active Window.
+#
+# GLOBALS:
+#   WINDOW
+# ARGS:
+#   None
+############################################################
 function remove_stored_geometry() {
     echo "Removing xprop _SNAP_STATE"
     xprop -id "$WINDOW" -remove _SNAP_STATE
 }
 
-if [ $# -eq 0 ] || [ $# -gt 1 ]; then
+if [ $# -ne 1 ]; then
    usage
    exit
 fi
@@ -199,7 +253,8 @@ case $1 in
         DIRECTION="$1"
         ;;
     *)
-        usage; exit
+        usage
+        exit
         ;;
 esac
 
