@@ -10,10 +10,6 @@
 # For unassigned variables in get_window_geometry()
 # shellcheck disable=SC2154
 
-WINDOW=0
-NUM_MONITORS=0
-DIRECTION=""
-
 function usage() {
     echo "Syntax: snap [l|r|t|b]"
     echo "  l  snap to left"
@@ -55,11 +51,12 @@ function get_desktop_geometry() {
     # usable realestate.
     # All desktop workspaces should have the same geometries, as far as I know, so we only need
     # the first set of measurements.
-    desktop_geom_qry_results=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
+    local desktop_geom_qry_results=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
 
     SCREEN_X_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f1)
     SCREEN_Y_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f2)
-    desktop_width=$(echo "$desktop_geom_qry_results" | cut -d' ' -f3)
+    
+    local desktop_width=$(echo "$desktop_geom_qry_results" | cut -d' ' -f3)
     SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
     SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
     
@@ -106,7 +103,7 @@ function get_window_state() {
     if [ $? == 0 ]; then
         echo "Window is already snapped."
         # _SNAP_STATE stores original x, y, w, h, last x/y quadrant, and the last x, y, w, and h.
-        window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
+        local window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
 
         ORIG_X=$(echo "$window_state" | cut -d' ' -f1)
         ORIG_Y=$(echo "$window_state" | cut -d' ' -f2)
@@ -243,11 +240,16 @@ function remove_stored_geometry() {
     xprop -id "$WINDOW" -remove _SNAP_STATE
 }
 
+############################################################
+# Main
+############################################################
+
 if [ $# -ne 1 ]; then
    usage
    exit
 fi
 
+DIRECTION=""
 case $1 in
     l|r|t|b) 
         DIRECTION="$1"
@@ -258,13 +260,31 @@ case $1 in
         ;;
 esac
 
+WINDOW=0
 get_active_window
 
+NUM_MONITORS=0
 get_monitor_count
+
+SCREEN_X_START=0
+SCREEN_Y_START=0
+SCREEN_WIDTH=0
+SCREEN_HEIGHT=0
 get_desktop_geometry
 
+CURR_X=0
+CURR_Y=0
+CURR_W=0
+CURR_H=0
 get_window_geometry
+
+BORDER_LEFT=0
+BORDER_RIGHT=0
+BORDER_TOP=0
+BORDER_BOTTOM=0
 get_window_borders
+
+
 get_window_state
 get_window_monitor
 
