@@ -143,15 +143,15 @@ function get_window_state() {
 # Determines the monitor being used by the window.
 #
 # GLOBALS:
-#   monitor
+#   MONITOR
 # ARGS:
 #   None
 ############################################################
 function get_window_monitor() {
-    monitor=1
+    MONITOR=1
     
     if [ "$ORIG_X" -ge "$SCREEN_WIDTH" ]; then
-        monitor=2
+        MONITOR=2
     fi
 }
 
@@ -228,6 +228,42 @@ function get_window_borders() {
 }
 
 ############################################################
+# Determines new X and Y Quadrants based on direction and current Quadrant.
+#
+# GLOBALS:
+#   DIRECTION
+#   NEW_X_QUAD
+#   NEW_Y_QUAD
+# ARGS:
+#   None
+############################################################
+function get_new_quadrants() {
+    if [ "$DIRECTION" == 'l' ]; then
+        NEW_X_QUAD=$((LAST_X_QUAD-1))
+    elif [ "$DIRECTION" == 'r' ]; then
+        NEW_X_QUAD=$((LAST_X_QUAD+1))
+    elif [ "$DIRECTION" == 't' ]; then
+        NEW_Y_QUAD=$((LAST_Y_QUAD+1))
+    elif [ "$DIRECTION" == 'b' ]; then
+        NEW_Y_QUAD=$((LAST_Y_QUAD-1))
+    fi
+    
+    if [ "$NEW_X_QUAD" -gt 1 ] || [ "$NEW_X_QUAD" -lt -1 ]; then
+        NEW_X_QUAD=$LAST_X_QUAD
+        echo "x out of range"
+    fi
+    
+    if [ "$NEW_Y_QUAD" -gt 1 ] || [ "$NEW_Y_QUAD" -lt -1 ]; then
+        if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 2 ]; then
+            echo "maximizing window"
+        else
+            NEW_Y_QUAD=$LAST_Y_QUAD
+            echo "y out of range"
+        fi
+    fi
+}
+
+############################################################
 # Clears any stored _SNAP_STATE Geometry of the Active Window.
 #
 # GLOBALS:
@@ -284,39 +320,28 @@ BORDER_TOP=0
 BORDER_BOTTOM=0
 get_window_borders
 
-
+ORIG_X=0
+ORIG_Y=0
+ORIG_W=0
+ORIG_H=0
+LAST_X=0
+LAST_Y=0
+LAST_W=0
+LAST_H=0
+LAST_X_QUAD=0
+LAST_Y_QUAD=0
 get_window_state
+
+MONITOR=0
 get_window_monitor
 
+NEW_X_QUAD=$LAST_X_QUAD
+NEW_Y_QUAD=$LAST_Y_QUAD
+get_new_quadrants
 
-new_x_quad=$LAST_X_QUAD
-new_y_quad=$LAST_Y_QUAD
 
-if [ "$DIRECTION" == 'l' ]; then
-    new_x_quad=$((LAST_X_QUAD-1))
-elif [ "$DIRECTION" == 'r' ]; then
-    new_x_quad=$((LAST_X_QUAD+1))
-elif [ "$DIRECTION" == 't' ]; then
-    new_y_quad=$((LAST_Y_QUAD+1))
-elif [ "$DIRECTION" == 'b' ]; then
-    new_y_quad=$((LAST_Y_QUAD-1))
-fi
 
-if [ "$new_x_quad" -gt 1 ] || [ "$new_x_quad" -lt -1 ]; then
-    new_x_quad=$LAST_X_QUAD
-    echo "x out of range"
-fi
-
-if [ "$new_y_quad" -gt 1 ] || [ "$new_y_quad" -lt -1 ]; then
-    if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 2 ]; then
-        echo "maximizing window"
-    else
-        new_y_quad=$LAST_Y_QUAD
-        echo "y out of range"
-    fi
-fi
-
-if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 0 ]; then
+if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 0 ]; then
     echo "Returning to original position"
     new_x=$ORIG_X
     new_y=$ORIG_Y
@@ -325,7 +350,7 @@ if [ "$new_x_quad" -eq 0 ] && [ "$new_y_quad" -eq 0 ]; then
     
     remove_stored_geometry
 else
-    case $new_x_quad in
+    case $NEW_X_QUAD in
         -1)
             new_x=$SCREEN_X_START
             new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
@@ -340,7 +365,7 @@ else
             ;;
     esac
     
-    case $new_y_quad in 
+    case $NEW_Y_QUAD in 
         -1)
             new_y=$((SCREEN_HEIGHT/2+BORDER_TOP+BORDER_BOTTOM+1))
             new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
@@ -361,15 +386,15 @@ else
     
     get_window_monitor
 
-    if [ "$monitor" == 2 ]; then
+    if [ "$MONITOR" == 2 ]; then
         new_x=$((new_x+SCREEN_WIDTH))
     fi
 
-    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x_quad, $new_y_quad, $new_x, $new_y, $new_w, $new_h"
+    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $NEW_X_QUAD, $NEW_Y_QUAD, $new_x, $new_y, $new_w, $new_h"
 fi
 
 echo "Snapping to:"
-echo "  Quadrant: $new_x_quad, $new_y_quad"
+echo "  Quadrant: $NEW_X_QUAD, $NEW_Y_QUAD"
 echo "  New X:    $new_x"
 echo "  New Y:    $new_y"
 echo "  New W:    $new_w"
