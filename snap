@@ -60,11 +60,7 @@ function get_desktop_geometry() {
     SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
     SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
     
-    echo "Desktop Geometry:"
-    echo "  X Start: $SCREEN_X_START"
-    echo "  Y Start: $SCREEN_Y_START"
-    echo "  Width:   $SCREEN_WIDTH"
-    echo "  Height:  $SCREEN_HEIGHT"
+    echo "Desktop Geometry: X=$SCREEN_X_START Y=$SCREEN_Y_START W=$SCREEN_WIDTH H=$SCREEN_HEIGHT"
 }
 
 ############################################################
@@ -101,7 +97,6 @@ function get_window_state() {
     xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
     # shellcheck disable=SC2181
     if [ $? == 0 ]; then
-        echo "Window is already snapped."
         # _SNAP_STATE stores original x, y, w, h, last x/y quadrant, and the last x, y, w, and h.
         local window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
 
@@ -115,6 +110,7 @@ function get_window_state() {
         LAST_Y=$(echo "$window_state" | cut -d' ' -f8)
         LAST_W=$(echo "$window_state" | cut -d' ' -f9)
         LAST_H=$(echo "$window_state" | cut -d' ' -f10)
+        echo "Window is already snapped to Quadrant [$LAST_X_QUAD,$LAST_Y_QUAD]"
     else
         echo "Window is not yet snapped."
         ORIG_X=$CURR_X
@@ -177,13 +173,7 @@ function get_window_geometry() {
                    -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
                    -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" )"
     
-    echo "Current Window Geometry:"
-    echo "  Abs X:   $x"
-    echo "  Abs Y:   $y"
-    echo "  Rel X:   $a"
-    echo "  Rel Y:   $b"
-    echo "  Width:   $w"
-    echo "  Height:  $h"
+    echo "Current Window Geometry: AbsX=$x AbsY=$y RelX=$a RelY=$b W=$w H=$h"
 
     # The actual X and Y coordinates of the window need to be calculated by subtracting
     # the relative X and Y coordinates from the Absolute X and Y coordinates.
@@ -193,11 +183,7 @@ function get_window_geometry() {
     CURR_W=$w
     CURR_H=$h
 
-    echo "Calcuated Window Geometry:"
-    echo "  Curr X:  $CURR_X"
-    echo "  Curr Y:  $CURR_Y"
-    echo "  Curr W:  $CURR_W"
-    echo "  Curr H:  $CURR_H"
+    echo "Calcuated Window Geometry: X=$CURR_X Y=$CURR_Y W=$CURR_W H=$CURR_H"
 }
 
 ############################################################
@@ -220,11 +206,7 @@ function get_window_borders() {
     BORDER_TOP=$(echo "$window_frame" | cut -d' ' -f3)
     BORDER_BOTTOM=$(echo "$window_frame" | cut -d' ' -f4)
 
-    echo "Window Frame Geometry:"
-    echo "  Left:   $BORDER_LEFT"
-    echo "  Right:  $BORDER_RIGHT"
-    echo "  Top:    $BORDER_TOP"
-    echo "  Bottom: $BORDER_BOTTOM"
+    echo "Window Frame Geometry: Left=$BORDER_LEFT Right=$BORDER_RIGHT Top=$BORDER_TOP Bottom=$BORDER_BOTTOM"
 }
 
 ############################################################
@@ -250,15 +232,15 @@ function get_new_quadrants() {
     
     if [ "$NEW_X_QUAD" -gt 1 ] || [ "$NEW_X_QUAD" -lt -1 ]; then
         NEW_X_QUAD=$LAST_X_QUAD
-        echo "x out of range"
+        echo "New X Quadrant ($NEW_X_QUAD) is out of range. Continuing to use $LAST_X_QUAD."
     fi
     
     if [ "$NEW_Y_QUAD" -gt 1 ] || [ "$NEW_Y_QUAD" -lt -1 ]; then
         if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 2 ]; then
-            echo "maximizing window"
+            echo "New Y Quadrant = 2. Snapping full screen."
         else
             NEW_Y_QUAD=$LAST_Y_QUAD
-            echo "y out of range"
+            echo "New Y Quadrant ($NEW_Y_QUAD) is out of range. Continuing to use $LAST_Y_QUAD."
         fi
     fi
 }
@@ -272,7 +254,7 @@ function get_new_quadrants() {
 #   None
 ############################################################
 function remove_stored_geometry() {
-    echo "Removing xprop _SNAP_STATE"
+    echo "Removing saved xprop _SNAP_STATE"
     xprop -id "$WINDOW" -remove _SNAP_STATE
 }
 
@@ -342,7 +324,7 @@ get_new_quadrants
 
 
 if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 0 ]; then
-    echo "Returning to original position"
+    echo "New Quadrant = [0,0]. Returning to original position."
     new_x=$ORIG_X
     new_y=$ORIG_Y
     new_w=$ORIG_W
@@ -393,12 +375,7 @@ else
     xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $NEW_X_QUAD, $NEW_Y_QUAD, $new_x, $new_y, $new_w, $new_h"
 fi
 
-echo "Snapping to:"
-echo "  Quadrant: $NEW_X_QUAD, $NEW_Y_QUAD"
-echo "  New X:    $new_x"
-echo "  New Y:    $new_y"
-echo "  New W:    $new_w"
-echo "  New H:    $new_h"
+echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
     
 xdotool windowsize "$WINDOW" "$new_w" "$new_h"
 xdotool windowmove "$WINDOW" "$new_x" "$new_y"
