@@ -10,6 +10,8 @@
 # For unassigned variables in get_window_geometry()
 # shellcheck disable=SC2154
 
+LOG_FILE=~/.snap.log
+
 function usage() {
     echo "Syntax: snap [l|r|t|b]"
     echo "  l  snap to left"
@@ -17,6 +19,53 @@ function usage() {
     echo "  t  snap to top"
     echo "  b  snap to bottom"
     echo 
+}
+
+############################################################
+# Append to log file with calling functions name.
+#
+# Globals:
+#   LOG_FILE
+# Args:
+#   full message to be logged to stdout and LOG_FILE
+############################################################
+function log() {
+    echo "${FUNCNAME[1]}: $@" | tee -a $LOG_FILE
+}
+
+function initialize_globals() {
+    WINDOW=0            # Active window to be snapped
+    NUM_MONITORS=0      # Number of monitors comprising desktop
+
+    # Desktop geometry
+    SCREEN_X_START=0
+    SCREEN_Y_START=0
+    SCREEN_WIDTH=0
+    SCREEN_HEIGHT=0
+
+    # Active windows current geometry
+    CURR_X=0
+    CURR_Y=0
+    CURR_W=0
+    CURR_H=0
+
+    # Active window borders
+    BORDER_LEFT=0
+    BORDER_RIGHT=0
+    BORDER_TOP=0
+    BORDER_BOTTOM=0
+
+    ORIG_X=0
+    ORIG_Y=0
+    ORIG_W=0
+    ORIG_H=0
+    LAST_X=0
+    LAST_Y=0
+    LAST_W=0
+    LAST_H=0
+    LAST_X_QUAD=0
+    LAST_Y_QUAD=0
+
 }
 
 ############################################################
@@ -29,7 +78,7 @@ function usage() {
 ############################################################
 function get_monitor_count() {
     NUM_MONITORS=$(xrandr -q | grep -c " connected")
-    echo "Num Monitors: $NUM_MONITORS"
+    log "$NUM_MONITORS"
 }
 
 ############################################################
@@ -60,7 +109,7 @@ function get_desktop_geometry() {
     SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
     SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
     
-    echo "Desktop Geometry: X=$SCREEN_X_START Y=$SCREEN_Y_START W=$SCREEN_WIDTH H=$SCREEN_HEIGHT"
+    log "X=$SCREEN_X_START Y=$SCREEN_Y_START W=$SCREEN_WIDTH H=$SCREEN_HEIGHT"
 }
 
 ############################################################
@@ -73,7 +122,7 @@ function get_desktop_geometry() {
 ############################################################
 function get_active_window() {
     WINDOW=$(xdotool getactivewindow)
-    echo "Active Window: $WINDOW"
+    log "$WINDOW"
 }
 
 ############################################################
@@ -88,44 +137,48 @@ function get_active_window() {
 #   LAST_Y      last snapped Y position
 #   LAST_W      last snapped width
 #   LAST_H      last snapped height
-#   LAST_X_QUAD last x quadrant
-#   LAST_Y_QUAD last y quadrant
 # ARGS:
 #   None
 ############################################################
 function get_window_state() {
-    xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null
-    # shellcheck disable=SC2181
-    if [ $? == 0 ]; then
-        # _SNAP_STATE stores original x, y, w, h, last x/y quadrant, and the last x, y, w, and h.
+    if xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null; then
+        # _SNAP_STATE stores original x, y, w, h, and the last x, y, w, and h.
         local window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
 
         ORIG_X=$(echo "$window_state" | cut -d' ' -f1)
         ORIG_Y=$(echo "$window_state" | cut -d' ' -f2)
         ORIG_W=$(echo "$window_state" | cut -d' ' -f3)
         ORIG_H=$(echo "$window_state" | cut -d' ' -f4)
-        LAST_X_QUAD=$(echo "$window_state" | cut -d' ' -f5)
-        LAST_Y_QUAD=$(echo "$window_state" | cut -d' ' -f6)
-        LAST_X=$(echo "$window_state" | cut -d' ' -f7)
-        LAST_Y=$(echo "$window_state" | cut -d' ' -f8)
-        LAST_W=$(echo "$window_state" | cut -d' ' -f9)
-        LAST_H=$(echo "$window_state" | cut -d' ' -f10)
-        echo "Window is already snapped to Quadrant [$LAST_X_QUAD,$LAST_Y_QUAD]"
+
+        LAST_X=$(echo "$window_state" | cut -d' ' -f5)
+        LAST_Y=$(echo "$window_state" | cut -d' ' -f6)
+        LAST_W=$(echo "$window_state" | cut -d' ' -f7)
+        LAST_H=$(echo "$window_state" | cut -d' ' -f8)
+
+        WAS_SNAPPED=1
     else
         echo "Window is not yet snapped."
         ORIG_X=$CURR_X
         ORIG_Y=$CURR_Y
         ORIG_W=$CURR_W
         ORIG_H=$CURR_H
-        LAST_X_QUAD=0
-        LAST_Y_QUAD=0
     fi
+}
 
-    # Verify window has not moved manually since last snap
+function get_saved_window_quadrant() {
+    if xprop -id "$WINDOW" | grep "_SNAP_QUADRANT" >/dev/null; then
+        local saved_quadrant_info=$(xprop -id "$WINDOW" _SNAP_QUADRANT | sed 's/,//g' | cut -d' ' -f3-)
+        LAST_X_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f1)
+        LAST_Y_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f2)
+        log "Window was snapped to quadrant [$LAST_X_QUAD, $LAST_Y_QUAD]"
+    fi
+}
+
+function check_if_window_moved_since_save() {
     if [ "$LAST_X" -ne "$CURR_X" ] || [ "$LAST_Y" -ne "$CURR_Y" ] ||
             [ "$LAST_W" -ne "$CURR_W" ] || [ "$LAST_H" -ne "$CURR_H" ]; then
+        log "Window has moved since previous snap."
         remove_stored_geometry
-        echo "Window is no longer snapped."
         ORIG_X=$CURR_X
         ORIG_Y=$CURR_Y
         ORIG_W=$CURR_W
@@ -173,7 +226,7 @@ function get_window_geometry() {
                    -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
                    -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" )"
     
-    echo "Current Window Geometry: AbsX=$x AbsY=$y RelX=$a RelY=$b W=$w H=$h"
+    log "per xwininfo - AbsX=$x AbsY=$y RelX=$a RelY=$b W=$w H=$h"
 
     # The actual X and Y coordinates of the window need to be calculated by subtracting
     # the relative X and Y coordinates from the Absolute X and Y coordinates.
@@ -183,7 +236,7 @@ function get_window_geometry() {
     CURR_W=$w
     CURR_H=$h
 
-    echo "Calcuated Window Geometry: X=$CURR_X Y=$CURR_Y W=$CURR_W H=$CURR_H"
+    log "calculated - X=$CURR_X Y=$CURR_Y W=$CURR_W H=$CURR_H"
 }
 
 ############################################################
@@ -206,7 +259,7 @@ function get_window_borders() {
     BORDER_TOP=$(echo "$window_frame" | cut -d' ' -f3)
     BORDER_BOTTOM=$(echo "$window_frame" | cut -d' ' -f4)
 
-    echo "Window Frame Geometry: Left=$BORDER_LEFT Right=$BORDER_RIGHT Top=$BORDER_TOP Bottom=$BORDER_BOTTOM"
+    log "per xprop _NET_FRAME_EXTENTS - Left=$BORDER_LEFT Right=$BORDER_RIGHT Top=$BORDER_TOP Bottom=$BORDER_BOTTOM"
 }
 
 ############################################################
@@ -256,11 +309,14 @@ function get_new_quadrants() {
 function remove_stored_geometry() {
     echo "Removing saved xprop _SNAP_STATE"
     xprop -id "$WINDOW" -remove _SNAP_STATE
+    echo "Removing saved xprop _SNAP_QUADRANT"
+    xprop -id "$WINDOW" -remove _SNAP_QUADRANT
 }
 
 ############################################################
 # Main
 ############################################################
+
 
 if [ $# -ne 1 ]; then
    usage
@@ -278,41 +334,26 @@ case $1 in
         ;;
 esac
 
-WINDOW=0
-get_active_window
+log "--- Snap ---"
 
-NUM_MONITORS=0
+initialize_globals
+
+# Determine display information
 get_monitor_count
-
-SCREEN_X_START=0
-SCREEN_Y_START=0
-SCREEN_WIDTH=0
-SCREEN_HEIGHT=0
 get_desktop_geometry
 
-CURR_X=0
-CURR_Y=0
-CURR_W=0
-CURR_H=0
+# Determine window information
+get_active_window
 get_window_geometry
-
-BORDER_LEFT=0
-BORDER_RIGHT=0
-BORDER_TOP=0
-BORDER_BOTTOM=0
 get_window_borders
 
-ORIG_X=0
-ORIG_Y=0
-ORIG_W=0
-ORIG_H=0
-LAST_X=0
-LAST_Y=0
-LAST_W=0
-LAST_H=0
-LAST_X_QUAD=0
-LAST_Y_QUAD=0
+# Determine previous window snap state
+WAS_SNAPPED=0
 get_window_state
+if [ "$WAS_SNAPPED" == 1 ]; then
+    check_if_window_moved_since_save
+    get_saved_window_quadrant
+fi
 
 MONITOR=0
 get_window_monitor
@@ -372,7 +413,8 @@ else
         new_x=$((new_x+SCREEN_WIDTH))
     fi
 
-    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $NEW_X_QUAD, $NEW_Y_QUAD, $new_x, $new_y, $new_w, $new_h"
+    xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
+    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
 fi
 
 echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
