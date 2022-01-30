@@ -10,8 +10,6 @@
 # For unassigned variables in get_window_geometry()
 # shellcheck disable=SC2154
 
-LOG_FILE=~/.snap.log
-
 function usage() {
     echo "Syntax: snap [l|r|t|b]"
     echo "  l  snap to left"
@@ -22,17 +20,18 @@ function usage() {
 }
 
 ############################################################
-# Append to log file with calling functions name.
+# Echos to STDOUT with prepended calling function name.
 #
-# Globals:
-#   LOG_FILE
 # Args:
-#   full message to be logged to stdout and LOG_FILE
+#   full message to be logged to stdout
 ############################################################
 function log() {
-    echo "${FUNCNAME[1]}: $@" | tee -a $LOG_FILE
+    echo "${FUNCNAME[1]}: $@"
 }
 
+############################################################
+# Initializes global variables
+############################################################
 function initialize_globals() {
     WINDOW=0            # Active window to be snapped
     NUM_MONITORS=0      # Number of monitors comprising desktop
@@ -73,8 +72,6 @@ function initialize_globals() {
 #
 # GLOBALS:
 #   NUM_MONITORS
-# ARGS:
-#   None
 ############################################################
 function get_monitor_count() {
     NUM_MONITORS=$(xrandr -q | grep -c " connected")
@@ -89,8 +86,6 @@ function get_monitor_count() {
 #   SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
 #   SCREEN_WIDTH    usable width of each screen, not including panels and docks
 #   SCREEN_HEIGHT   usable height of each screen, not including panels and docks
-# ARGS:
-#   None
 ############################################################
 function get_desktop_geometry() {
 
@@ -117,8 +112,6 @@ function get_desktop_geometry() {
 #
 # GLOBALS:
 #   WINDOW
-# ARGS:
-#   None
 ############################################################
 function get_active_window() {
     WINDOW=$(xdotool getactivewindow)
@@ -137,8 +130,6 @@ function get_active_window() {
 #   LAST_Y      last snapped Y position
 #   LAST_W      last snapped width
 #   LAST_H      last snapped height
-# ARGS:
-#   None
 ############################################################
 function get_window_state() {
     if xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null; then
