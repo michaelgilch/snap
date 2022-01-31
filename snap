@@ -326,9 +326,7 @@ get_monitor_count
 get_desktop_geometry
 
 if [ "$MOVE" == "1" ]; then
-    # TODO move window
     get_active_window_monitor
-    echo "Moving Window $DIRECTION $MONITOR"
 
     new_x=$CURR_X
     new_y=$CURR_Y
@@ -340,26 +338,12 @@ if [ "$MOVE" == "1" ]; then
     if [ "$DIRECTION" == "l" ] && [ "$MONITOR" == 2 ]; then
         new_x=$((CURR_X-SCREEN_WIDTH))
         ORIG_X=$((ORIG_X-SCREEN_WIDTH))
-        echo "currx = $CURR_X screen width = $SCREEN_WIDTH newx = $new_x"
     elif [ "$DIRECTION" == "r" ] && [ "$MONITOR" == 1 ]; then
         new_x=$((CURR_X+SCREEN_WIDTH))
         ORIG_X=$((ORIG_X+SCREEN_WIDTH))
-        echo "currx = $CURR_X screen width = $SCREEN_WIDTH newx = $new_x"
     else
         log "Invalid move operation"
     fi
-
-
-    xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
-
-    xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
-
-    echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
-        
-    #xdotool windowsize "$WINDOW" "$new_w" "$new_h"
-    xdotool windowmove "$WINDOW" "$new_x" "$new_y"
-    
-    fetch_current_window_geometry
 
 else 
     NEW_X_QUAD=$LAST_X_QUAD
@@ -417,15 +401,15 @@ else
         if [ "$MONITOR" == 2 ]; then
             new_x=$((new_x+SCREEN_WIDTH))
         fi
-    
-        xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
-        xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
     fi
-    
-    echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
-        
-    xdotool windowsize "$WINDOW" "$new_w" "$new_h"
-    xdotool windowmove "$WINDOW" "$new_x" "$new_y"
-    
-    fetch_current_window_geometry
 fi
+
+xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
+xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
+
+log "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
+        
+xdotool windowsize "$WINDOW" "$new_w" "$new_h"
+xdotool windowmove "$WINDOW" "$new_x" "$new_y"
+    
+fetch_current_window_geometry
