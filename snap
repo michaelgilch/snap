@@ -7,15 +7,14 @@
 # - screens have same resolutions
 # - panels are present on every screen, in the same location, and of the same size
 
-# For unassigned variables in get_window_geometry()
+# For unassigned variables in fetch_current_window_geometry()
 # shellcheck disable=SC2154
 
-function usage() {
-    echo "Syntax: snap [l|r|t|b]"
-    echo "  l  snap to left"
-    echo "  r  snap to right"
-    echo "  t  snap to top"
-    echo "  b  snap to bottom"
+function usage() 
+{
+    echo "Usage: $0 [-s <l|r|u|d>] [-m <l|r>]"
+    echo " -s   snap direction"
+    echo " -m   move direction"
     echo 
 }
 
@@ -23,16 +22,20 @@ function usage() {
 # Echos to STDOUT with prepended calling function name.
 #
 # Args:
-#   full message to be logged to stdout
+#   full message to be logged to STDOUT
 ############################################################
-function log() {
-    echo "${FUNCNAME[1]}: $@"
+function log() 
+{
+    echo "${FUNCNAME[1]}: $*"
 }
 
 ############################################################
 # Initializes global variables
 ############################################################
-function initialize_globals() {
+function init() 
+{
+    log "Initializing global variables"
+
     WINDOW=0            # Active window to be snapped
     NUM_MONITORS=0      # Number of monitors comprising desktop
 
@@ -64,74 +67,66 @@ function initialize_globals() {
     LAST_H=0
     LAST_X_QUAD=0
     LAST_Y_QUAD=0
-
-}
-
-############################################################
-# Determines the number of monitors connected to the PC.
-#
-# GLOBALS:
-#   NUM_MONITORS
-############################################################
-function get_monitor_count() {
-    NUM_MONITORS=$(xrandr -q | grep -c " connected")
-    log "$NUM_MONITORS"
-}
-
-############################################################
-# Determines the geometry of a single monitor (screen).
-#
-# GLOBALS:
-#   SCREEN_X_START  starting X coordinate of the primary monitor, not including panels and docks
-#   SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
-#   SCREEN_WIDTH    usable width of each screen, not including panels and docks
-#   SCREEN_HEIGHT   usable height of each screen, not including panels and docks
-############################################################
-function get_desktop_geometry() {
-
-    # _NET_WORKAREA contains the starting x coordinate, starting y coordinate, width, and height
-    # of each desktop workspace.
-    # Docks and Panels are taken into account with all 4 values, not including their sizes as 
-    # usable realestate.
-    # All desktop workspaces should have the same geometries, as far as I know, so we only need
-    # the first set of measurements.
-    local desktop_geom_qry_results=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
-
-    SCREEN_X_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f1)
-    SCREEN_Y_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f2)
-    
-    local desktop_width=$(echo "$desktop_geom_qry_results" | cut -d' ' -f3)
-    SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
-    SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
-    
-    log "X=$SCREEN_X_START Y=$SCREEN_Y_START W=$SCREEN_WIDTH H=$SCREEN_HEIGHT"
 }
 
 ############################################################
 # Determines the ID of the Active Window
-#
-# GLOBALS:
-#   WINDOW
 ############################################################
-function get_active_window() {
+function fetch_active_window_id() 
+{
     WINDOW=$(xdotool getactivewindow)
-    log "$WINDOW"
+    log "(xdotool) $WINDOW"
+}
+
+############################################################
+# Determines the current geometry of the Active Window
+############################################################
+function fetch_current_window_geometry() 
+{
+    # The most accurate representation of X and Y coordinates I could find is using 
+    # xwininfo and calculating based off the absolute and relative positions.
+    eval "$(xwininfo -id "$WINDOW" |
+            sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
+                   -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
+                   -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/a=\1/p" \
+                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/b=\1/p" \
+                   -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
+                   -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" )"
+    
+    log "(xwininfo) AbsX=$x AbsY=$y RelX=$a RelY=$b W=$w H=$h"
+
+    # The actual X and Y coordinates of the window need to be calculated by subtracting
+    # the relative X and Y coordinates from the Absolute X and Y coordinates.
+    CURR_X=$((x-a))
+    CURR_Y=$((y-b))
+
+    CURR_W=$w
+    CURR_H=$h
+
+    log "(calculated) X=$CURR_X Y=$CURR_Y W=$CURR_W H=$CURR_H"
+}
+
+############################################################
+# Determines the Active Windows borders.
+############################################################
+function fetch_window_borders() 
+{
+    # _NET_FRAME_EXTENTS contains the left, right, top, and bottom borders, in that order
+    window_frame=$(xprop -id "$WINDOW" _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
+
+    BORDER_LEFT=$(echo "$window_frame" | cut -d' ' -f1)
+    BORDER_RIGHT=$(echo "$window_frame" | cut -d' ' -f2)
+    BORDER_TOP=$(echo "$window_frame" | cut -d' ' -f3)
+    BORDER_BOTTOM=$(echo "$window_frame" | cut -d' ' -f4)
+
+    log "(xprop _NET_FRAME_EXTENTS) Left=$BORDER_LEFT Right=$BORDER_RIGHT Top=$BORDER_TOP Bottom=$BORDER_BOTTOM"
 }
 
 ############################################################
 # Determines if window has already been snapped and sets original geometries
-#
-# GLOBALS:
-#   ORIG_X      original unsnapped X position
-#   ORIG_Y      original unsnapped Y position
-#   ORIG_W      original unsnapped width
-#   ORIG_H      original unsnapped height
-#   LAST_X      last snapped X position
-#   LAST_Y      last snapped Y position
-#   LAST_W      last snapped width
-#   LAST_H      last snapped height
 ############################################################
-function get_window_state() {
+function fetch_previous_snap_info() 
+{
     if xprop -id "$WINDOW" | grep "_SNAP_STATE" >/dev/null; then
         # _SNAP_STATE stores original x, y, w, h, and the last x, y, w, and h.
         local window_state=$(xprop -id "$WINDOW" _SNAP_STATE | sed 's/,//g' | cut -d' ' -f3-)
@@ -147,8 +142,16 @@ function get_window_state() {
         LAST_H=$(echo "$window_state" | cut -d' ' -f8)
 
         WAS_SNAPPED=1
+        log "(xprop _SNAP_STATE) Window has stored snap info:"
+        log "    origX=$ORIG_X origY=$ORIG_Y origW=$ORIG_W origH=$ORIG_H"
+        log "    lastX=$LAST_X lastY=$LAST_Y lastW=$LAST_W lastH=$LAST_H"
+
+        local saved_quadrant_info=$(xprop -id "$WINDOW" _SNAP_QUADRANT | sed 's/,//g' | cut -d' ' -f3-)
+        LAST_X_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f1)
+        LAST_Y_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f2)
+        log "(xprop _SNAP_QUADRANT) Window has stored snap quadrant of: [$LAST_X_QUAD, $LAST_Y_QUAD]"
     else
-        echo "Window is not yet snapped."
+        log "Window does not have stored snap info."
         ORIG_X=$CURR_X
         ORIG_Y=$CURR_Y
         ORIG_W=$CURR_W
@@ -156,16 +159,12 @@ function get_window_state() {
     fi
 }
 
-function get_saved_window_quadrant() {
-    if xprop -id "$WINDOW" | grep "_SNAP_QUADRANT" >/dev/null; then
-        local saved_quadrant_info=$(xprop -id "$WINDOW" _SNAP_QUADRANT | sed 's/,//g' | cut -d' ' -f3-)
-        LAST_X_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f1)
-        LAST_Y_QUAD=$(echo "$saved_quadrant_info" | cut -d' ' -f2)
-        log "Window was snapped to quadrant [$LAST_X_QUAD, $LAST_Y_QUAD]"
-    fi
-}
-
-function check_if_window_moved_since_save() {
+############################################################
+# Determines if window has moved since previous snap.
+# If it has, reset the stored geometries.
+############################################################
+function has_window_moved_since_snap() 
+{
     if [ "$LAST_X" -ne "$CURR_X" ] || [ "$LAST_Y" -ne "$CURR_Y" ] ||
             [ "$LAST_W" -ne "$CURR_W" ] || [ "$LAST_H" -ne "$CURR_H" ]; then
         log "Window has moved since previous snap."
@@ -180,237 +179,253 @@ function check_if_window_moved_since_save() {
 }
 
 ############################################################
-# Determines the monitor being used by the window.
-#
-# GLOBALS:
-#   MONITOR
-# ARGS:
-#   None
+# Determines the number of monitors connected to the PC.
 ############################################################
-function get_window_monitor() {
+function get_monitor_count()
+{
+    NUM_MONITORS=$(xrandr -q | grep -c " connected")
+    log "(xrandr) $NUM_MONITORS"
+}
+
+############################################################
+# Determines the geometry of a single monitor (screen).
+#
+# SCREEN_X_START  starting X coordinate of the primary monitor, not including panels and docks
+# SCREEN_Y_START  starting Y coordinate of the primary monitor, not including panels and docks
+# SCREEN_WIDTH    usable width of each screen, not including panels and docks
+# SCREEN_HEIGHT   usable height of each screen, not including panels and docks
+############################################################
+function get_desktop_geometry()
+{
+    # _NET_WORKAREA contains the starting x coordinate, starting y coordinate, width, and height
+    # of each desktop workspace.
+    # Docks and Panels are taken into account with all 4 values, not including their sizes as 
+    # usable realestate.
+    # All desktop workspaces should have the same geometries, as far as I know, so we only need
+    # the first set of measurements.
+    local desktop_geom_qry_results=$(xprop -root _NET_WORKAREA | sed 's/,//g' | cut -d' ' -f3-)
+
+    SCREEN_X_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f1)
+    SCREEN_Y_START=$(echo "$desktop_geom_qry_results" | cut -d' ' -f2)
+    
+    local desktop_width=$(echo "$desktop_geom_qry_results" | cut -d' ' -f3)
+    SCREEN_WIDTH=$((desktop_width/NUM_MONITORS))
+    SCREEN_HEIGHT=$(echo "$desktop_geom_qry_results" | cut -d' ' -f4)
+    
+    log "(xprop _NET_WORKAREA) X=$SCREEN_X_START Y=$SCREEN_Y_START W=$SCREEN_WIDTH H=$SCREEN_HEIGHT"
+}
+
+############################################################
+# Determines the monitor being used by the window.
+############################################################
+function get_active_window_monitor()
+{
     MONITOR=1
     
-    if [ "$ORIG_X" -ge "$SCREEN_WIDTH" ]; then
+    if [ "$CURR_X" -ge "$SCREEN_WIDTH" ]; then
         MONITOR=2
     fi
 }
 
 ############################################################
-# Determines the current geometry of the Active Window
-#
-# GLOBALS:
-#   CURR_X  current window X position  
-#   CURR_Y  current window Y position
-#   CURR_W  current window width
-#   CURR_H  current window height
-# ARGS:
-#   None
-############################################################
-function get_window_geometry() {
-    # The most accurate representation of X and Y coordinates I could find is using 
-    # xwininfo and calculating based off the absolute and relative positions.
-    eval "$(xwininfo -id "$WINDOW" |
-            sed -n -e "s/^ \+Absolute upper-left X: \+\([0-9]\+\).*/x=\1/p" \
-                   -e "s/^ \+Absolute upper-left Y: \+\([0-9]\+\).*/y=\1/p" \
-                   -e "s/^ \+Relative upper-left X: \+\([0-9]\+\).*/a=\1/p" \
-                   -e "s/^ \+Relative upper-left Y: \+\([0-9]\+\).*/b=\1/p" \
-                   -e "s/^ \+Width: \+\([0-9]\+\).*/w=\1/p" \
-                   -e "s/^ \+Height: \+\([0-9]\+\).*/h=\1/p" )"
-    
-    log "per xwininfo - AbsX=$x AbsY=$y RelX=$a RelY=$b W=$w H=$h"
-
-    # The actual X and Y coordinates of the window need to be calculated by subtracting
-    # the relative X and Y coordinates from the Absolute X and Y coordinates.
-    CURR_X=$((x-a))
-    CURR_Y=$((y-b))
-
-    CURR_W=$w
-    CURR_H=$h
-
-    log "calculated - X=$CURR_X Y=$CURR_Y W=$CURR_W H=$CURR_H"
-}
-
-############################################################
-# Determines the Active Windows borders.
-#
-# GLOBALS:
-#   BORDER_LEFT     the left border size
-#   BORDER_RIGHT    the right border size
-#   BORDER_TOP      the top border size, including titlebar if existant
-#   BORDER_BOTTOM   the bottom border size
-# ARGS:
-#   None
-############################################################
-function get_window_borders() {
-    # _NET_FRAME_EXTENTS contains the left, right, top, and bottom borders, in that order
-    window_frame=$(xprop -id "$WINDOW" _NET_FRAME_EXTENTS | sed 's/,//g' | cut -d' ' -f3-)
-
-    BORDER_LEFT=$(echo "$window_frame" | cut -d' ' -f1)
-    BORDER_RIGHT=$(echo "$window_frame" | cut -d' ' -f2)
-    BORDER_TOP=$(echo "$window_frame" | cut -d' ' -f3)
-    BORDER_BOTTOM=$(echo "$window_frame" | cut -d' ' -f4)
-
-    log "per xprop _NET_FRAME_EXTENTS - Left=$BORDER_LEFT Right=$BORDER_RIGHT Top=$BORDER_TOP Bottom=$BORDER_BOTTOM"
-}
-
-############################################################
 # Determines new X and Y Quadrants based on direction and current Quadrant.
-#
-# GLOBALS:
-#   DIRECTION
-#   NEW_X_QUAD
-#   NEW_Y_QUAD
-# ARGS:
-#   None
 ############################################################
-function get_new_quadrants() {
+function get_new_quadrant()
+{
     if [ "$DIRECTION" == 'l' ]; then
         NEW_X_QUAD=$((LAST_X_QUAD-1))
     elif [ "$DIRECTION" == 'r' ]; then
         NEW_X_QUAD=$((LAST_X_QUAD+1))
-    elif [ "$DIRECTION" == 't' ]; then
+    elif [ "$DIRECTION" == 'u' ]; then
         NEW_Y_QUAD=$((LAST_Y_QUAD+1))
-    elif [ "$DIRECTION" == 'b' ]; then
+    elif [ "$DIRECTION" == 'd' ]; then
         NEW_Y_QUAD=$((LAST_Y_QUAD-1))
     fi
     
     if [ "$NEW_X_QUAD" -gt 1 ] || [ "$NEW_X_QUAD" -lt -1 ]; then
         NEW_X_QUAD=$LAST_X_QUAD
-        echo "New X Quadrant ($NEW_X_QUAD) is out of range. Continuing to use $LAST_X_QUAD."
+        log "New X Quadrant ($NEW_X_QUAD) is out of range. Continuing to use $LAST_X_QUAD."
     fi
     
     if [ "$NEW_Y_QUAD" -gt 1 ] || [ "$NEW_Y_QUAD" -lt -1 ]; then
         if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 2 ]; then
-            echo "New Y Quadrant = 2. Snapping full screen."
+            log "New Y Quadrant = 2. Snapping full screen."
         else
             NEW_Y_QUAD=$LAST_Y_QUAD
-            echo "New Y Quadrant ($NEW_Y_QUAD) is out of range. Continuing to use $LAST_Y_QUAD."
+            log "New Y Quadrant ($NEW_Y_QUAD) is out of range. Continuing to use $LAST_Y_QUAD."
         fi
     fi
 }
 
 ############################################################
 # Clears any stored _SNAP_STATE Geometry of the Active Window.
-#
-# GLOBALS:
-#   WINDOW
-# ARGS:
-#   None
 ############################################################
-function remove_stored_geometry() {
-    echo "Removing saved xprop _SNAP_STATE"
+function remove_stored_geometry()
+{
+    log "Removing saved xprop _SNAP_STATE"
     xprop -id "$WINDOW" -remove _SNAP_STATE
-    echo "Removing saved xprop _SNAP_QUADRANT"
+    log "Removing saved xprop _SNAP_QUADRANT"
     xprop -id "$WINDOW" -remove _SNAP_QUADRANT
 }
 
 ############################################################
+#
 # Main
+#
 ############################################################
 
+MOVE=0
+while getopts s:m: option; do
+    case "${option}" in
+        s)
+            MOVE=0
+            DIRECTION="$OPTARG"
+            ;;
+        m)
+            MOVE=1
+            DIRECTION="$OPTARG"
+            ;;
+        *)
+            usage
+            exit
+            ;;
+    esac
+done
 
-if [ $# -ne 1 ]; then
-   usage
-   exit
-fi
-
-DIRECTION=""
-case $1 in
-    l|r|t|b) 
-        DIRECTION="$1"
-        ;;
-    *)
+if [ "$MOVE" == "0" ]; then
+    if [ "$DIRECTION" != "l" ] && [ "$DIRECTION" != "r" ] && 
+       [ "$DIRECTION" != "u" ] && [ "$DIRECTION" != "d" ]; then
         usage
         exit
-        ;;
-esac
+    fi
+fi
 
-log "--- Snap ---"
+if [ "$MOVE" == "1" ]; then
+    if [ "$DIRECTION" != "l" ] && [ "$DIRECTION" != "r" ]; then
+        usage
+        exit
+    fi
+fi
 
-initialize_globals
+init
+
+# Determine active windows current attributes
+fetch_active_window_id
+fetch_current_window_geometry
+fetch_window_borders
+
+# Determine if window has previous snap state
+WAS_SNAPPED=0
+fetch_previous_snap_info
+if [ "$WAS_SNAPPED" == 1 ]; then
+    has_window_moved_since_snap
+fi
 
 # Determine display information
 get_monitor_count
 get_desktop_geometry
 
-# Determine window information
-get_active_window
-get_window_geometry
-get_window_borders
+if [ "$MOVE" == "1" ]; then
+    # TODO move window
+    get_active_window_monitor
+    echo "Moving Window $DIRECTION $MONITOR"
 
-# Determine previous window snap state
-WAS_SNAPPED=0
-get_window_state
-if [ "$WAS_SNAPPED" == 1 ]; then
-    check_if_window_moved_since_save
-    get_saved_window_quadrant
-fi
+    new_x=$CURR_X
+    new_y=$CURR_Y
+    new_w=$CURR_W
+    new_h=$CURR_H
+    NEW_X_QUAD=$LAST_X_QUAD
+    NEW_Y_QUAD=$LAST_Y_QUAD
 
-MONITOR=0
-get_window_monitor
-
-NEW_X_QUAD=$LAST_X_QUAD
-NEW_Y_QUAD=$LAST_Y_QUAD
-get_new_quadrants
-
-
-
-if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 0 ]; then
-    echo "New Quadrant = [0,0]. Returning to original position."
-    new_x=$ORIG_X
-    new_y=$ORIG_Y
-    new_w=$ORIG_W
-    new_h=$ORIG_H
-    
-    remove_stored_geometry
-else
-    case $NEW_X_QUAD in
-        -1)
-            new_x=$SCREEN_X_START
-            new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
-            ;;
-        0)
-            new_x=$SCREEN_X_START
-            new_w=$((SCREEN_WIDTH-BORDER_LEFT-BORDER_RIGHT))
-            ;;
-        1)
-            new_x=$((SCREEN_WIDTH/2))
-            new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
-            ;;
-    esac
-    
-    case $NEW_Y_QUAD in 
-        -1)
-            new_y=$((SCREEN_HEIGHT/2+BORDER_TOP+BORDER_BOTTOM+1))
-            new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
-            ;;
-        0)
-            new_y=$SCREEN_Y_START
-            new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM-1))
-            ;;
-        1)
-            new_y=$SCREEN_Y_START
-            new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
-            ;;
-        2)  # Special case for maximized window
-            new_y=$SCREEN_Y_START
-            new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM))
-            ;;
-    esac
-    
-    get_window_monitor
-
-    if [ "$MONITOR" == 2 ]; then
-        new_x=$((new_x+SCREEN_WIDTH))
+    if [ "$DIRECTION" == "l" ] && [ "$MONITOR" == 2 ]; then
+        new_x=$((CURR_X-SCREEN_WIDTH))
+        ORIG_X=$((ORIG_X-SCREEN_WIDTH))
+        echo "currx = $CURR_X screen width = $SCREEN_WIDTH newx = $new_x"
+    elif [ "$DIRECTION" == "r" ] && [ "$MONITOR" == 1 ]; then
+        new_x=$((CURR_X+SCREEN_WIDTH))
+        ORIG_X=$((ORIG_X+SCREEN_WIDTH))
+        echo "currx = $CURR_X screen width = $SCREEN_WIDTH newx = $new_x"
+    else
+        log "Invalid move operation"
     fi
 
+
     xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
+
     xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
-fi
 
-echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
+    echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
+        
+    #xdotool windowsize "$WINDOW" "$new_w" "$new_h"
+    xdotool windowmove "$WINDOW" "$new_x" "$new_y"
     
-xdotool windowsize "$WINDOW" "$new_w" "$new_h"
-xdotool windowmove "$WINDOW" "$new_x" "$new_y"
+    fetch_current_window_geometry
 
-get_window_geometry
+else 
+    NEW_X_QUAD=$LAST_X_QUAD
+    NEW_Y_QUAD=$LAST_Y_QUAD
+    get_new_quadrant
+    
+    # If the new quadrant is [0,0], the window is back in it's original position.
+    # Set the new coordinates to the original coordinates and remove any stored
+    # snap info from xprop.
+    if [ "$NEW_X_QUAD" -eq 0 ] && [ "$NEW_Y_QUAD" -eq 0 ]; then
+        log "New Quadrant = [0,0]. Returning to original position."
+        new_x=$ORIG_X
+        new_y=$ORIG_Y
+        new_w=$ORIG_W
+        new_h=$ORIG_H
+        
+        remove_stored_geometry
+    else
+        case $NEW_X_QUAD in
+            -1)
+                new_x=$SCREEN_X_START
+                new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
+                ;;
+            0)
+                new_x=$SCREEN_X_START
+                new_w=$((SCREEN_WIDTH-BORDER_LEFT-BORDER_RIGHT))
+                ;;
+            1)
+                new_x=$((SCREEN_WIDTH/2))
+                new_w=$((SCREEN_WIDTH/2-BORDER_LEFT-BORDER_RIGHT))
+                ;;
+        esac
+        
+        case $NEW_Y_QUAD in 
+            -1)
+                new_y=$((SCREEN_HEIGHT/2+BORDER_TOP+BORDER_BOTTOM+1))
+                new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
+                ;;
+            0)
+                new_y=$SCREEN_Y_START
+                new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM-1))
+                ;;
+            1)
+                new_y=$SCREEN_Y_START
+                new_h=$((SCREEN_HEIGHT/2-BORDER_TOP-BORDER_BOTTOM))
+                ;;
+            2)  
+                # Special case for maximized window
+                new_y=$SCREEN_Y_START
+                new_h=$((SCREEN_HEIGHT-BORDER_TOP-BORDER_BOTTOM))
+                ;;
+        esac
+        
+        get_active_window_monitor
+        if [ "$MONITOR" == 2 ]; then
+            new_x=$((new_x+SCREEN_WIDTH))
+        fi
+    
+        xprop -id "$WINDOW" -f _SNAP_QUADRANT 32i -set _SNAP_QUADRANT "$NEW_X_QUAD, $NEW_Y_QUAD"
+        xprop -id "$WINDOW" -f _SNAP_STATE 32i -set _SNAP_STATE "$ORIG_X, $ORIG_Y, $ORIG_W, $ORIG_H, $new_x, $new_y, $new_w, $new_h"
+    fi
+    
+    echo "Snapping to: Quadrant=[$NEW_X_QUAD,$NEW_Y_QUAD] X=$new_x Y=$new_y W=$new_w H=$new_h"
+        
+    xdotool windowsize "$WINDOW" "$new_w" "$new_h"
+    xdotool windowmove "$WINDOW" "$new_x" "$new_y"
+    
+    fetch_current_window_geometry
+fi
