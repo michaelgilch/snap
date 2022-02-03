@@ -14,7 +14,9 @@ function usage()
 {
     echo "Usage: $0 [-s <l|r|u|d>] [-m <l|r>]"
     echo " -s   snap direction"
+    echo "      supports left, right, up, and down"
     echo " -m   move direction"
+    echo "      supports left and right"
     echo 
 }
 
