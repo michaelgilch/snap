@@ -12,27 +12,45 @@ I could not find a Window snapping utility for Openbox that I was happy with, so
 <!-- Keybindings for snap: Example using Super+Arrow -->
 <keybind key="W-Left">
     <action name="Execute">
-        <command>snap l</command>
+        <command>snap -sl</command>
     </action>
 </keybind>
 <keybind key="W-Right">
     <action name="Execute">
-        <command>snap r</command>
+        <command>snap -sr</command>
     </action>
 </keybind>
 <keybind key="W-Up">
     <action name="Execute">
-        <command>snap t</command>
+        <command>snap -su</command>
     </action>
 </keybind>
 <keybind key="W-Down">
     <action name="Execute">                                                                   
-        <command>snap b</command>
+        <command>snap -sd</command>
+    </action>
+</keybind>
+<keybind key="W-C-Left">
+    <action name="Execute">
+        <command>snap -ml</command>
+    </action>
+</keybind>
+<keybind key="W-C-Right">
+    <action name="Execute">
+        <command>snap -mr</command>
     </action>
 </keybind>
 ```
 
 ## How it works
+
+```
+Usage: snap [-s <l|r|u|d>] [-m <l|r>]
+ -s     snap direction
+        supports left, right, up, and down
+ -m     move direction
+        supports left and rught
+```
 
 Think of each monitor as a 3x3 grid, with a special case of maximized...
 
@@ -55,10 +73,11 @@ Think of each monitor as a 3x3 grid, with a special case of maximized...
     |______________|______________|______________|
 
 - Each window, regardless of its starting position, is initially in its _original_, unsnapped position at (0,0).
-- Moving a window using `snap <direction>` will snap the window to the appropriate grid position, with each of the 4 _full_ grid positions taking up the entire half of the screen.
+- Moving a window using `snap -s <direction>` will snap the window to the appropriate grid position, with each of the 4 _full_ grid positions taking up the entire half of the screen.
 - After being snapped to a _full_ position, a window can be snapped further to a corner position.
 - To return a window to its original position, simply snap it back to the _original_ (0,0) grid location.
 - Additionally, manually moving a window from its snapped position (dragging, for example) will remove its stored snapped state.
+- You can move a window from one monitor to another using `snap -m <direction>`. Doing so will mvoe the original position to that monitor.
 
 ## Limitations
 
